@@ -59,7 +59,7 @@ export interface WSMessageData {
   agent_name?: string
   content?: string
   created_at?: string
-  [key: string]: any  // Allow additional properties
+  [key: string]: unknown  // Allow additional properties with unknown type
 }
 
 export interface WSMessage {
