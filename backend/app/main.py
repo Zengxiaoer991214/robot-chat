@@ -1,0 +1,83 @@
+"""
+Main FastAPI application.
+"""
+import logging
+from contextlib import asynccontextmanager
+from fastapi import FastAPI
+from fastapi.middleware.cors import CORSMiddleware
+
+from app.core.database import engine, Base
+from app.api import agents, rooms, websocket
+
+# Configure logging
+logging.basicConfig(
+    level=logging.INFO,
+    format='%(asctime)s - %(name)s - %(levelname)s - %(message)s'
+)
+logger = logging.getLogger(__name__)
+
+
+@asynccontextmanager
+async def lifespan(app: FastAPI):
+    """Application lifespan manager."""
+    # Startup
+    logger.info("Starting application...")
+    # Create database tables
+    Base.metadata.create_all(bind=engine)
+    logger.info("Database tables created")
+    
+    yield
+    
+    # Shutdown
+    logger.info("Shutting down application...")
+
+
+# Create FastAPI app
+app = FastAPI(
+    title="AI Group Chat API",
+    description="API for AI-powered group chat system",
+    version="1.0.0",
+    lifespan=lifespan
+)
+
+# Configure CORS
+app.add_middleware(
+    CORSMiddleware,
+    allow_origins=["*"],  # In production, specify actual origins
+    allow_credentials=True,
+    allow_methods=["*"],
+    allow_headers=["*"],
+)
+
+# Include routers
+app.include_router(agents.router)
+app.include_router(rooms.router)
+app.include_router(websocket.router)
+
+
+@app.get("/")
+async def root():
+    """Root endpoint."""
+    return {
+        "message": "AI Group Chat API",
+        "version": "1.0.0",
+        "docs": "/docs"
+    }
+
+
+@app.get("/health")
+async def health_check():
+    """Health check endpoint."""
+    return {"status": "healthy"}
+
+
+if __name__ == "__main__":
+    import uvicorn
+    from app.core.config import settings
+    
+    uvicorn.run(
+        "app.main:app",
+        host=settings.host,
+        port=settings.port,
+        reload=settings.debug
+    )
