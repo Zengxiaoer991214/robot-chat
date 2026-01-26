@@ -38,7 +38,17 @@ class Settings(BaseSettings):
     )
     default_sleep_between_messages: float = Field(
         default=2.0,
-        description="Default sleep time between messages in seconds"
+        description="Default sleep time between messages in seconds (lower for dev/test)"
+    )
+    
+    # Message templates (can be overridden for i18n)
+    conversation_start_template: str = Field(
+        default="本次群聊的主题是：{topic}，请大家开始讨论。",
+        description="Template for conversation start message"
+    )
+    conversation_end_template: str = Field(
+        default="群聊已结束，感谢大家的参与！",
+        description="Template for conversation end message"
     )
     
     class Config:

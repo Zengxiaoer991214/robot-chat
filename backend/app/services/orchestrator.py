@@ -71,7 +71,7 @@ class ChatOrchestrator:
             
             # Send system message announcing the topic
             await self._send_system_message(
-                f"本次群聊的主题是：{room.topic}，请大家开始讨论。",
+                settings.conversation_start_template.format(topic=room.topic),
                 websocket_broadcast_callback
             )
             
@@ -142,7 +142,7 @@ class ChatOrchestrator:
             
             # Send completion message
             await self._send_system_message(
-                "群聊已结束，感谢大家的参与！",
+                settings.conversation_end_template,
                 websocket_broadcast_callback
             )
             

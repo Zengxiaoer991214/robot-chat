@@ -53,7 +53,16 @@ export interface CreateRoomRequest {
   agent_ids?: number[]
 }
 
+export interface WSMessageData {
+  id?: number
+  agent_id?: number | null
+  agent_name?: string
+  content?: string
+  created_at?: string
+  [key: string]: any  // Allow additional properties
+}
+
 export interface WSMessage {
-  type: string
-  data: any
+  type: string  // message, status, error
+  data: WSMessageData
 }

@@ -24,7 +24,8 @@ class TestBaseLLMAdapter:
     
     def test_default_temperature(self):
         """Test default temperature value."""
-        adapter = OpenAIAdapter(model_name="gpt-3.5-turbo")
+        # Provide a test key to avoid initialization errors
+        adapter = OpenAIAdapter(model_name="gpt-3.5-turbo", api_key="test-key")
         assert adapter.temperature == 0.7
 
 
@@ -169,14 +170,14 @@ class TestGetLLMAdapter:
     
     def test_get_openai_adapter(self):
         """Test getting OpenAI adapter."""
-        adapter = get_llm_adapter("openai", "gpt-4", 0.8)
+        adapter = get_llm_adapter("openai", "gpt-4", 0.8, api_key="test-key")
         assert isinstance(adapter, OpenAIAdapter)
         assert adapter.model_name == "gpt-4"
         assert adapter.temperature == 0.8
     
     def test_get_deepseek_adapter(self):
         """Test getting DeepSeek adapter."""
-        adapter = get_llm_adapter("deepseek", "deepseek-chat")
+        adapter = get_llm_adapter("deepseek", "deepseek-chat", api_key="test-key")
         assert isinstance(adapter, DeepSeekAdapter)
         assert adapter.model_name == "deepseek-chat"
     
@@ -193,7 +194,7 @@ class TestGetLLMAdapter:
     
     def test_case_insensitive_provider(self):
         """Test that provider name is case-insensitive."""
-        adapter1 = get_llm_adapter("OpenAI", "gpt-4")
-        adapter2 = get_llm_adapter("OPENAI", "gpt-4")
+        adapter1 = get_llm_adapter("OpenAI", "gpt-4", api_key="test-key")
+        adapter2 = get_llm_adapter("OPENAI", "gpt-4", api_key="test-key")
         assert isinstance(adapter1, OpenAIAdapter)
         assert isinstance(adapter2, OpenAIAdapter)

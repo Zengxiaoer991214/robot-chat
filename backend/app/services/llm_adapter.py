@@ -54,7 +54,11 @@ class OpenAIAdapter(BaseLLMAdapter):
         key = self.api_key or settings.openai_api_key
         if not key:
             logger.warning("No OpenAI API key provided")
-            key = "dummy-key-for-testing"  # Allow initialization without key
+            # For testing purposes only - should not be used in production
+            if settings.debug:
+                key = "dummy-key-for-testing"
+            else:
+                raise ValueError("OpenAI API key is required. Set OPENAI_API_KEY environment variable or provide api_key parameter.")
         self.client = AsyncOpenAI(api_key=key)
     
     async def generate(self, messages: List[Dict[str, str]], system_prompt: str) -> str:
@@ -104,7 +108,11 @@ class DeepSeekAdapter(BaseLLMAdapter):
         key = self.api_key or settings.deepseek_api_key
         if not key:
             logger.warning("No DeepSeek API key provided")
-            key = "dummy-key-for-testing"  # Allow initialization without key
+            # For testing purposes only - should not be used in production
+            if settings.debug:
+                key = "dummy-key-for-testing"
+            else:
+                raise ValueError("DeepSeek API key is required. Set DEEPSEEK_API_KEY environment variable or provide api_key parameter.")
         self.client = AsyncOpenAI(
             api_key=key,
             base_url="https://api.deepseek.com"

@@ -78,6 +78,10 @@ export const roomApi = {
 
 // WebSocket helper
 export const createWebSocket = (roomId: number): WebSocket => {
-  const wsUrl = `${window.location.protocol === 'https:' ? 'wss:' : 'ws:'}//${window.location.host}/ws/rooms/${roomId}`
+  // Use environment variable or construct URL based on current location
+  const baseUrl = import.meta.env.VITE_WS_BASE_URL
+  const wsUrl = baseUrl 
+    ? `${baseUrl}/ws/rooms/${roomId}`
+    : `${window.location.protocol === 'https:' ? 'wss:' : 'ws:'}//${window.location.host}/ws/rooms/${roomId}`
   return new WebSocket(wsUrl)
 }
