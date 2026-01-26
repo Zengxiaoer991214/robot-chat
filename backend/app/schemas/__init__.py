@@ -32,7 +32,7 @@ class AgentBase(BaseModel):
     avatar_url: Optional[str] = None
     provider: str = Field(..., min_length=1, max_length=50)
     model_name: str = Field(..., min_length=1, max_length=100)
-    system_prompt: str = Field(..., min_length=1)
+    system_prompt: str = Field(default="You are a participant in a group chat. Your responses should be concise, casual, and conversational, mimicking how humans type in a group chat. Keep messages short. Only provide longer explanations if necessary.", min_length=1)
     api_key_config: Optional[str] = None
     temperature: float = Field(default=0.7, ge=0.0, le=2.0)
 
@@ -60,6 +60,44 @@ class AgentResponse(AgentBase):
     model_config = ConfigDict(from_attributes=True)
 
 
+# ===== Role Schemas =====
+class RoleBase(BaseModel):
+    """Base role schema."""
+    name: str = Field(..., min_length=1, max_length=100)
+    gender: Optional[str] = None
+    age: Optional[str] = None
+    profession: Optional[str] = None
+    personality: Optional[str] = None
+    aggressiveness: int = Field(default=5, ge=1, le=10)
+    agent_id: int
+
+
+class RoleCreate(RoleBase):
+    """Schema for creating a role."""
+    pass
+
+
+class RoleUpdate(BaseModel):
+    """Schema for updating a role."""
+    name: Optional[str] = Field(None, min_length=1, max_length=100)
+    gender: Optional[str] = None
+    age: Optional[str] = None
+    profession: Optional[str] = None
+    personality: Optional[str] = None
+    aggressiveness: Optional[int] = Field(None, ge=1, le=10)
+    agent_id: Optional[int] = None
+
+
+
+class RoleResponse(RoleBase):
+    """Schema for role response."""
+    id: int
+    created_at: datetime
+    agent: Optional[AgentResponse] = None
+    
+    model_config = ConfigDict(from_attributes=True)
+
+
 # ===== Room Schemas =====
 class RoomBase(BaseModel):
     """Base room schema."""
@@ -71,7 +109,8 @@ class RoomBase(BaseModel):
 class RoomCreate(RoomBase):
     """Schema for creating a room."""
     creator_id: Optional[int] = None
-    agent_ids: List[int] = Field(default_factory=list, min_length=0)
+    role_ids: List[int] = Field(default_factory=list, min_length=0)
+    mode: str = Field(default='debate', pattern="^(debate|group_chat)$")
 
 
 class RoomResponse(RoomBase):
@@ -79,16 +118,18 @@ class RoomResponse(RoomBase):
     id: int
     current_rounds: int
     status: str
+    mode: str
+    session_id: int
     creator_id: Optional[int]
     created_at: datetime
-    agents: List[AgentResponse] = []
+    roles: List[RoleResponse] = []
     
     model_config = ConfigDict(from_attributes=True)
 
 
 class RoomJoin(BaseModel):
-    """Schema for joining agents to a room."""
-    agent_id: int
+    """Schema for joining roles to a room."""
+    role_id: int
 
 
 # ===== Message Schemas =====
@@ -102,6 +143,8 @@ class MessageCreate(MessageBase):
     """Schema for creating a message."""
     room_id: int
     agent_id: Optional[int] = None
+    role_id: Optional[int] = None
+    sender_name: Optional[str] = None
 
 
 class MessageResponse(MessageBase):
@@ -109,8 +152,11 @@ class MessageResponse(MessageBase):
     id: int
     room_id: int
     agent_id: Optional[int]
+    role_id: Optional[int]
+    sender_name: Optional[str]
     created_at: datetime
     agent: Optional[AgentResponse] = None
+    sender_role: Optional[RoleResponse] = None
     
     model_config = ConfigDict(from_attributes=True)
 

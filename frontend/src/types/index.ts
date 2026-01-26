@@ -13,6 +13,18 @@ export interface Agent {
   temperature: number
 }
 
+export interface Role {
+  id: number
+  name: string
+  gender?: string
+  age?: string
+  profession?: string
+  personality?: string
+  aggressiveness: number
+  agent_id: number
+  agent?: Agent
+}
+
 export interface Room {
   id: number
   name: string
@@ -20,19 +32,22 @@ export interface Room {
   max_rounds: number
   current_rounds: number
   status: 'idle' | 'running' | 'finished'
+  mode: 'debate' | 'group_chat'
+  session_id: number
   creator_id?: number
   created_at: string
-  agents: Agent[]
+  roles: Role[]
 }
 
 export interface Message {
   id: number
   room_id: number
-  agent_id?: number
+  role_id?: number
   content: string
   role: 'user' | 'assistant' | 'system'
+  sender_name?: string
   created_at: string
-  agent?: Agent
+  sender_role?: Role
 }
 
 export interface CreateAgentRequest {
@@ -45,18 +60,32 @@ export interface CreateAgentRequest {
   temperature?: number
 }
 
+export interface CreateRoleRequest {
+  name: string
+  gender?: string
+  age?: string
+  profession?: string
+  personality?: string
+  aggressiveness?: number
+  agent_id: number
+}
+
 export interface CreateRoomRequest {
   name: string
   topic: string
   max_rounds?: number
   creator_id?: number
   agent_ids?: number[]
+  role_ids?: number[]
+  mode?: 'debate' | 'group_chat'
 }
 
 export interface WSMessageData {
   id?: number
   agent_id?: number | null
+  role_id?: number | null
   agent_name?: string
+  sender_name?: string
   content?: string
   created_at?: string
   [key: string]: unknown  // Allow additional properties with unknown type

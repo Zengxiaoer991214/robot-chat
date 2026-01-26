@@ -11,6 +11,7 @@ from app.core.database import get_db
 from app.models import Room, Agent
 from app.schemas import RoomCreate, RoomResponse, RoomJoin, MessageResponse
 from app.services.orchestrator import ChatOrchestrator
+from app.api.websocket import manager
 
 logger = logging.getLogger(__name__)
 router = APIRouter(prefix="/api/rooms", tags=["rooms"])
@@ -35,21 +36,20 @@ async def create_room(room_data: RoomCreate, db: Session = Depends(get_db)):
         HTTPException: If creation fails
     """
     try:
-        # Validate agent IDs if provided
-        if room_data.agent_ids:
-            agents = db.query(Agent).filter(Agent.id.in_(room_data.agent_ids)).all()
-            if len(agents) != len(room_data.agent_ids):
+        # Validate role IDs if provided
+        roles = []
+        if room_data.role_ids:
+            roles = db.query(Role).filter(Role.id.in_(room_data.role_ids)).all()
+            if len(roles) != len(room_data.role_ids):
                 raise HTTPException(
                     status_code=status.HTTP_400_BAD_REQUEST,
-                    detail="One or more agent IDs are invalid"
+                    detail="One or more role IDs are invalid"
                 )
-        else:
-            agents = []
-        
+
         # Create room
-        room_dict = room_data.model_dump(exclude={"agent_ids"})
+        room_dict = room_data.model_dump(exclude={"role_ids"})
         room = Room(**room_dict)
-        room.agents = agents
+        room.roles = roles
         
         db.add(room)
         db.commit()
@@ -129,18 +129,18 @@ async def get_room(room_id: int, db: Session = Depends(get_db)):
 @router.post("/{room_id}/join", response_model=RoomResponse)
 async def join_room(room_id: int, join_data: RoomJoin, db: Session = Depends(get_db)):
     """
-    Add an agent to a room.
+    Add a role to a room.
     
     Args:
         room_id: Room ID
-        join_data: Agent join data
+        join_data: Role join data
         db: Database session
         
     Returns:
         Updated room
         
     Raises:
-        HTTPException: If room or agent not found
+        HTTPException: If room or role not found
     """
     try:
         room = db.query(Room).filter(Room.id == room_id).first()
@@ -150,26 +150,26 @@ async def join_room(room_id: int, join_data: RoomJoin, db: Session = Depends(get
                 detail=f"Room {room_id} not found"
             )
         
-        agent = db.query(Agent).filter(Agent.id == join_data.agent_id).first()
-        if not agent:
+        role = db.query(Role).filter(Role.id == join_data.role_id).first()
+        if not role:
             raise HTTPException(
                 status_code=status.HTTP_404_NOT_FOUND,
-                detail=f"Agent {join_data.agent_id} not found"
+                detail=f"Role {join_data.role_id} not found"
             )
         
-        # Check if agent already in room
-        if agent in room.agents:
+        # Check if role already in room
+        if role in room.roles:
             raise HTTPException(
                 status_code=status.HTTP_400_BAD_REQUEST,
-                detail=f"Agent {join_data.agent_id} already in room"
+                detail=f"Role {join_data.role_id} already in room"
             )
         
-        # Add agent to room
-        room.agents.append(agent)
+        # Add role to room
+        room.roles.append(role)
         db.commit()
         db.refresh(room)
         
-        logger.info(f"Agent {agent.name} joined room {room.name}")
+        logger.info(f"Role {role.name} joined room {room.name}")
         return room
         
     except HTTPException:
@@ -213,10 +213,10 @@ async def start_room(room_id: int, background_tasks: BackgroundTasks, db: Sessio
                 detail="Room conversation already running"
             )
         
-        if not room.agents:
+        if not room.roles:
             raise HTTPException(
                 status_code=status.HTTP_400_BAD_REQUEST,
-                detail="Room has no agents"
+                detail="Room has no roles"
             )
         
         # Create orchestrator
@@ -224,7 +224,7 @@ async def start_room(room_id: int, background_tasks: BackgroundTasks, db: Sessio
         active_orchestrators[room_id] = orchestrator
         
         # Start conversation in background
-        background_tasks.add_task(orchestrator.start_conversation)
+        background_tasks.add_task(orchestrator.start_conversation, manager.broadcast)
         
         logger.info(f"Started conversation for room {room_id}")
         return {"message": "Conversation started", "room_id": room_id}
@@ -285,8 +285,97 @@ async def stop_room(room_id: int, db: Session = Depends(get_db)):
         )
 
 
+@router.post("/{room_id}/restart", status_code=status.HTTP_200_OK)
+async def restart_room(room_id: int, db: Session = Depends(get_db)):
+    """
+    Restart the conversation in a room (new session).
+    
+    Args:
+        room_id: Room ID
+        db: Database session
+        
+    Returns:
+        Success message
+    """
+    try:
+        room = db.query(Room).filter(Room.id == room_id).first()
+        if not room:
+            raise HTTPException(
+                status_code=status.HTTP_404_NOT_FOUND,
+                detail=f"Room {room_id} not found"
+            )
+            
+        # Stop orchestrator if running
+        if room_id in active_orchestrators:
+            active_orchestrators[room_id].stop()
+            del active_orchestrators[room_id]
+            
+        # Update room state for new session
+        room.status = "idle"
+        room.current_rounds = 0
+        room.session_id += 1
+        db.commit()
+        
+        logger.info(f"Restarted room {room_id} (New Session ID: {room.session_id})")
+        return {"message": "Conversation restarted", "room_id": room_id, "session_id": room.session_id}
+        
+    except HTTPException:
+        raise
+    except Exception as e:
+        logger.error(f"Error restarting room {room_id}: {str(e)}")
+        db.rollback()
+        raise HTTPException(
+            status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
+            detail=f"Failed to restart room: {str(e)}"
+        )
+
+
+@router.delete("/{room_id}", status_code=status.HTTP_204_NO_CONTENT)
+async def delete_room(room_id: int, db: Session = Depends(get_db)):
+    """
+    Delete a chat room.
+    
+    Args:
+        room_id: Room ID
+        db: Database session
+    """
+    try:
+        room = db.query(Room).filter(Room.id == room_id).first()
+        if not room:
+            raise HTTPException(
+                status_code=status.HTTP_404_NOT_FOUND,
+                detail=f"Room {room_id} not found"
+            )
+            
+        # Stop orchestrator if running
+        if room_id in active_orchestrators:
+            active_orchestrators[room_id].stop()
+            del active_orchestrators[room_id]
+            
+        db.delete(room)
+        db.commit()
+        
+        logger.info(f"Deleted room {room_id}")
+        
+    except HTTPException:
+        raise
+    except Exception as e:
+        logger.error(f"Error deleting room {room_id}: {str(e)}")
+        db.rollback()
+        raise HTTPException(
+            status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
+            detail=f"Failed to delete room: {str(e)}"
+        )
+
+
 @router.get("/{room_id}/messages", response_model=List[MessageResponse])
-async def get_messages(room_id: int, skip: int = 0, limit: int = 100, db: Session = Depends(get_db)):
+async def get_messages(
+    room_id: int, 
+    skip: int = 0, 
+    limit: int = 100, 
+    session_id: int = None,
+    db: Session = Depends(get_db)
+):
     """
     Get messages from a room.
     
@@ -294,6 +383,7 @@ async def get_messages(room_id: int, skip: int = 0, limit: int = 100, db: Sessio
         room_id: Room ID
         skip: Number of records to skip
         limit: Maximum number of records to return
+        session_id: Optional session ID filter
         db: Database session
         
     Returns:
@@ -312,9 +402,13 @@ async def get_messages(room_id: int, skip: int = 0, limit: int = 100, db: Sessio
                 detail=f"Room {room_id} not found"
             )
         
+        query = db.query(Message).filter(Message.room_id == room_id)
+        
+        if session_id is not None:
+            query = query.filter(Message.session_id == session_id)
+            
         messages = (
-            db.query(Message)
-            .filter(Message.room_id == room_id)
+            query
             .order_by(Message.created_at)
             .offset(skip)
             .limit(limit)

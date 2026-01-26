@@ -31,7 +31,7 @@ async def create_agent(agent_data: AgentCreate, db: Session = Depends(get_db)):
     """
     try:
         # Validate provider
-        valid_providers = ["openai", "deepseek", "ollama"]
+        valid_providers = ["openai", "deepseek", "ollama", "google", "chatanywhere"]
         if agent_data.provider.lower() not in valid_providers:
             raise HTTPException(
                 status_code=status.HTTP_400_BAD_REQUEST,

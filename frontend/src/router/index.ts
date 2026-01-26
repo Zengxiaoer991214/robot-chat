@@ -2,6 +2,7 @@ import { createRouter, createWebHistory } from 'vue-router'
 import Dashboard from '@/views/Dashboard.vue'
 import AgentManagement from '@/views/AgentManagement.vue'
 import RoomConfiguration from '@/views/RoomConfiguration.vue'
+import RoleManagement from '@/views/RoleManagement.vue'
 import ChatRoom from '@/views/ChatRoom.vue'
 
 const routes = [
@@ -14,6 +15,11 @@ const routes = [
     path: '/agents',
     name: 'AgentManagement',
     component: AgentManagement,
+  },
+  {
+    path: '/roles',
+    name: 'RoleManagement',
+    component: RoleManagement,
   },
   {
     path: '/rooms/new',

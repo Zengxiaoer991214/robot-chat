@@ -2,7 +2,7 @@
  * API service for backend communication
  */
 import axios from 'axios'
-import type { Agent, Room, Message, CreateAgentRequest, CreateRoomRequest } from '@/types'
+import type { Agent, Room, Message, CreateAgentRequest, CreateRoomRequest, Role, CreateRoleRequest } from '@/types'
 
 const API_BASE_URL = import.meta.env.VITE_API_BASE_URL || '/api'
 
@@ -40,6 +40,33 @@ export const agentApi = {
   },
 }
 
+// Role API
+export const roleApi = {
+  getAll: async (): Promise<Role[]> => {
+    const response = await api.get<Role[]>('/roles')
+    return response.data
+  },
+
+  getById: async (id: number): Promise<Role> => {
+    const response = await api.get<Role>(`/roles/${id}`)
+    return response.data
+  },
+
+  create: async (data: CreateRoleRequest): Promise<Role> => {
+    const response = await api.post<Role>('/roles', data)
+    return response.data
+  },
+
+  update: async (id: number, data: Partial<CreateRoleRequest>): Promise<Role> => {
+    const response = await api.patch<Role>(`/roles/${id}`, data)
+    return response.data
+  },
+
+  delete: async (id: number): Promise<void> => {
+    await api.delete(`/roles/${id}`)
+  },
+}
+
 // Room API
 export const roomApi = {
   getAll: async (): Promise<Room[]> => {
@@ -57,8 +84,8 @@ export const roomApi = {
     return response.data
   },
 
-  join: async (roomId: number, agentId: number): Promise<Room> => {
-    const response = await api.post<Room>(`/rooms/${roomId}/join`, { agent_id: agentId })
+  join: async (roomId: number, roleId: number): Promise<Room> => {
+    const response = await api.post<Room>(`/rooms/${roomId}/join`, { role_id: roleId })
     return response.data
   },
 
@@ -70,8 +97,20 @@ export const roomApi = {
     await api.post(`/rooms/${roomId}/stop`)
   },
 
-  getMessages: async (roomId: number): Promise<Message[]> => {
-    const response = await api.get<Message[]>(`/rooms/${roomId}/messages`)
+  restart: async (roomId: number): Promise<void> => {
+    await api.post(`/rooms/${roomId}/restart`)
+  },
+
+  delete: async (roomId: number): Promise<void> => {
+    await api.delete(`/rooms/${roomId}`)
+  },
+
+  getMessages: async (roomId: number, sessionId?: number): Promise<Message[]> => {
+    const params: any = {}
+    if (sessionId !== undefined) {
+      params.session_id = sessionId
+    }
+    const response = await api.get<Message[]>(`/rooms/${roomId}/messages`, { params })
     return response.data
   },
 }

@@ -71,6 +71,19 @@ const goToRoom = (id: number) => {
   router.push(`/rooms/${id}`)
 }
 
+const deleteRoom = async (id: number) => {
+  if (!confirm('Are you sure you want to delete this room? All history will be lost.')) return
+  
+  try {
+    await roomApi.delete(id)
+    // Remove from list immediately
+    rooms.value = rooms.value.filter(r => r.id !== id)
+  } catch (error) {
+    console.error('Failed to delete room:', error)
+    alert('Failed to delete room')
+  }
+}
+
 const statusClass = (status: string) => {
   switch (status) {
     case 'running':

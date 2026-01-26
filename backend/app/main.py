@@ -7,7 +7,7 @@ from fastapi import FastAPI
 from fastapi.middleware.cors import CORSMiddleware
 
 from app.core.database import engine, Base
-from app.api import agents, rooms, websocket
+from app.api import agents, roles, rooms, websocket
 
 # Configure logging
 logging.basicConfig(
@@ -25,6 +25,22 @@ async def lifespan(app: FastAPI):
     # Create database tables
     Base.metadata.create_all(bind=engine)
     logger.info("Database tables created")
+    
+    # Reset any "running" rooms to "idle" on startup (since orchestrators are in-memory)
+    from app.core.database import SessionLocal
+    from app.models import Room
+    
+    db = SessionLocal()
+    try:
+        running_rooms = db.query(Room).filter(Room.status == "running").all()
+        for room in running_rooms:
+            room.status = "idle"
+            logger.info(f"Reset room {room.id} status to idle on startup")
+        db.commit()
+    except Exception as e:
+        logger.error(f"Error resetting room statuses: {str(e)}")
+    finally:
+        db.close()
     
     yield
     
@@ -51,6 +67,7 @@ app.add_middleware(
 
 # Include routers
 app.include_router(agents.router)
+app.include_router(roles.router)
 app.include_router(rooms.router)
 app.include_router(websocket.router)
 
