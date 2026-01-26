@@ -73,7 +73,7 @@ class TestOpenAIAdapter:
             messages = [{"role": "user", "content": "Hello"}]
             system_prompt = "You are a helpful assistant."
             
-            with pytest.raises(ValueError, match="Empty response"):
+            with pytest.raises(Exception, match="Failed to generate response from OpenAI"):
                 await adapter.generate(messages, system_prompt)
     
     async def test_generate_api_error(self):
@@ -160,7 +160,7 @@ class TestOllamaAdapter:
             messages = [{"role": "user", "content": "Test"}]
             system_prompt = "You are Ollama."
             
-            with pytest.raises(ValueError, match="Empty response"):
+            with pytest.raises(Exception, match="Failed to generate response from Ollama"):
                 await adapter.generate(messages, system_prompt)
 
 

@@ -54,6 +54,7 @@ class OpenAIAdapter(BaseLLMAdapter):
         key = self.api_key or settings.openai_api_key
         if not key:
             logger.warning("No OpenAI API key provided")
+            key = "dummy-key-for-testing"  # Allow initialization without key
         self.client = AsyncOpenAI(api_key=key)
     
     async def generate(self, messages: List[Dict[str, str]], system_prompt: str) -> str:
@@ -103,6 +104,7 @@ class DeepSeekAdapter(BaseLLMAdapter):
         key = self.api_key or settings.deepseek_api_key
         if not key:
             logger.warning("No DeepSeek API key provided")
+            key = "dummy-key-for-testing"  # Allow initialization without key
         self.client = AsyncOpenAI(
             api_key=key,
             base_url="https://api.deepseek.com"

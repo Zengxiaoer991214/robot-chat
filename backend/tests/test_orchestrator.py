@@ -102,19 +102,20 @@ class TestChatOrchestrator:
             msg.created_at = datetime.utcnow()
             messages.append(msg)
         
-        # Setup mock query
+        # Setup mock query - note: messages are returned in reverse order then reversed
         mock_query = MagicMock()
         mock_query.filter.return_value = mock_query
         mock_query.order_by.return_value = mock_query
         mock_query.limit.return_value = mock_query
-        mock_query.all.return_value = messages
+        # Mock returns in reverse chronological order (5, 4, 3, 2, 1)
+        mock_query.all.return_value = list(reversed(messages))
         
         mock_db.query.return_value = mock_query
         
         orchestrator = ChatOrchestrator(room_id=1, db=mock_db)
         result = orchestrator._get_recent_messages(room_id=1)
         
-        # Messages should be reversed to chronological order
+        # After reversal, messages should be in chronological order (1, 2, 3, 4, 5)
         assert len(result) == 5
         assert result[0].id == 1
         assert result[-1].id == 5
