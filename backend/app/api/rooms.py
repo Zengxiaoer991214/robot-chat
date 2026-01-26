@@ -8,7 +8,7 @@ from fastapi import APIRouter, Depends, HTTPException, status, BackgroundTasks
 from sqlalchemy.orm import Session
 
 from app.core.database import get_db
-from app.models import Room, Agent
+from app.models import Room, Agent, Role
 from app.schemas import RoomCreate, RoomResponse, RoomJoin, MessageResponse
 from app.services.orchestrator import ChatOrchestrator
 from app.api.websocket import manager

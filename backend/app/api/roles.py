@@ -86,7 +86,7 @@ async def get_role(role_id: int, db: Session = Depends(get_db)):
         )
 
 
-@router.put("/{role_id}", response_model=RoleResponse)
+@router.patch("/{role_id}", response_model=RoleResponse)
 async def update_role(role_id: int, role_data: RoleUpdate, db: Session = Depends(get_db)):
     """
     Update a role.
