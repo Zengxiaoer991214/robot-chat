@@ -28,7 +28,7 @@ class Settings(BaseSettings):
     
     # Server
     host: str = Field(default="0.0.0.0", description="Server host")
-    port: int = Field(default=8000, description="Server port")
+    port: int = Field(default=8000, description="Server port", validation_alias="APP_PORT")
     debug: bool = Field(default=False, description="Debug mode")
     
     # Application
@@ -54,6 +54,7 @@ class Settings(BaseSettings):
     class Config:
         env_file = ".env"
         case_sensitive = False
+        extra = "ignore"
 
 
 # Global settings instance

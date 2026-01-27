@@ -37,9 +37,17 @@
               {{ room.current_rounds }}/{{ room.max_rounds }} rounds
             </span>
           </div>
-          <div class="mt-3 flex items-center">
-            <span class="text-xs text-gray-500 mr-2">Agents:</span>
-            <span class="text-xs font-medium">{{ room.agents.length }}</span>
+          <div class="mt-3 flex items-center justify-between">
+            <div class="flex items-center">
+              <span class="text-xs text-gray-500 mr-2">Roles:</span>
+              <span class="text-xs font-medium">{{ room.roles.length }}</span>
+            </div>
+            <button 
+              @click.stop="deleteRoom(room.id)"
+              class="text-xs text-red-600 hover:text-red-900 z-10"
+            >
+              Delete
+            </button>
           </div>
         </div>
       </div>
@@ -77,7 +85,7 @@ const deleteRoom = async (id: number) => {
   try {
     await roomApi.delete(id)
     // Remove from list immediately
-    rooms.value = rooms.value.filter(r => r.id !== id)
+    rooms.value = rooms.value.filter((r: Room) => r.id !== id)
   } catch (error) {
     console.error('Failed to delete room:', error)
     alert('Failed to delete room')

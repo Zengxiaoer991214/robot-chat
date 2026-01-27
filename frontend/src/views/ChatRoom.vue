@@ -128,10 +128,10 @@
 </template>
 
 <script setup lang="ts">
-import { ref, onMounted, onUnmounted, nextTick, watch } from 'vue'
+import { ref, onMounted, onUnmounted, nextTick } from 'vue'
 import { useRoute, useRouter } from 'vue-router'
 import { roomApi, createWebSocket } from '@/services/api'
-import type { Room, Message, WSMessage } from '@/types'
+import type { Room, Message, WSMessage, Role } from '@/types'
 import { marked } from 'marked'
 
 const route = useRoute()
@@ -153,7 +153,7 @@ let socket: WebSocket | null = null
 // Helper to get role name
 const getRoleName = (roleId?: number | null) => {
   if (!roleId) return 'System'
-  const role = room.value?.roles.find(r => r.id === roleId)
+  const role = room.value?.roles.find((r: Role) => r.id === roleId)
   return role ? role.name : 'Unknown Role'
 }
 
@@ -219,11 +219,23 @@ const connectWebSocket = () => {
       const data: WSMessage = JSON.parse(event.data)
       
       if (data.type === 'message') {
-        const msg = data.data
-        // Add to messages if not already there (simple dedup by ID if needed, but append is safer for now)
+        const msgData = data.data
+        // Add to messages if not already there
+        
+        // Construct a valid Message object with required fields
+        const msg: Message = {
+          id: msgData.id || Date.now(),
+          room_id: roomId,
+          role_id: msgData.role_id || undefined,
+          content: msgData.content || '',
+          role: (msgData.role as 'user' | 'assistant' | 'system') || (msgData.role_id ? 'assistant' : 'system'),
+          sender_name: msgData.sender_name || msgData.agent_name,
+          created_at: msgData.created_at || new Date().toISOString()
+        }
+
         // Check if message ID exists to prevent dupes if we reload
-        if (!messages.value.find(m => m.id === msg.id)) {
-          messages.value.push(msg as Message)
+        if (!messages.value.find((m: Message) => m.id === msg.id)) {
+          messages.value.push(msg)
           scrollToBottom()
           
           // If system message and it's round increment related, update rounds?

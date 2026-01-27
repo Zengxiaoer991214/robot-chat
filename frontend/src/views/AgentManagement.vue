@@ -142,7 +142,7 @@ const form = reactive<CreateAgentRequest>({
 })
 
 // Update default model name when provider changes
-watch(() => form.provider, (newProvider) => {
+watch(() => form.provider, (newProvider: string) => {
   if (isEditing.value) return // Don't change model name when editing existing agent
   
   switch (newProvider) {
