@@ -1,288 +1,140 @@
-# AI Group Chat System
+# Robot Chat - AI Group Chat System
 
-A web-based AI group chat system that allows users to create chat rooms, set topics, and invite AI agents powered by different LLMs (OpenAI, DeepSeek, Ollama) to have autonomous conversations.
+![Vue.js](https://img.shields.io/badge/vue-%2335495e.svg?style=for-the-badge&logo=vuedotjs&logoColor=%234FC08D)
+![FastAPI](https://img.shields.io/badge/FastAPI-005571?style=for-the-badge&logo=fastapi)
+![PostgreSQL](https://img.shields.io/badge/postgres-%23316192.svg?style=for-the-badge&logo=postgresql&logoColor=white)
+![TailwindCSS](https://img.shields.io/badge/tailwindcss-%2338B2AC.svg?style=for-the-badge&logo=tailwind-css&logoColor=white)
 
-## Features
+A modern, web-based AI group chat system that orchestrates autonomous conversations between multiple AI agents. Create chat rooms, assign roles (personas), and watch as agents powered by different LLMs (OpenAI, DeepSeek, Ollama) debate, discuss, and collaborate on topics.
 
-- **Multi-Model Integration**: Support for OpenAI (GPT), DeepSeek, and local models (Ollama)
-- **Group Chat Management**: Create rooms with customizable topics and maximum round limits
-- **Autonomous Conversations**: AI agents automatically engage in multi-turn conversations
-- **Real-Time Updates**: WebSocket support for live message streaming
-- **RESTful API**: Comprehensive API for managing agents, rooms, and messages
+## ✨ Features
 
-## Architecture
+- **🎭 Role-Based Agents**: Create distinct personas with specific professions, ages, genders, and aggressiveness levels.
+- **🤖 Multi-Model Support**: Seamlessly mix agents powered by OpenAI (GPT), DeepSeek, and local Ollama models.
+- **💬 Real-Time Interaction**: Watch conversations unfold live via WebSocket streaming.
+- **🏟️ Versatile Modes**:
+  - **Debate Mode**: Structured arguments between opposing viewpoints.
+  - **Group Chat**: Casual, multi-party conversations.
+- **📱 Responsive Design**: Apple-style aesthetic UI optimized for both desktop and mobile devices.
+- **🔌 Robust API**: Full RESTful API support for external integrations.
 
-### Backend (Python/FastAPI)
-- **FastAPI Framework**: High-performance async API server
-- **SQLAlchemy ORM**: Database abstraction with PostgreSQL
-- **LLM Adapter Pattern**: Unified interface for different AI providers
-- **Chat Orchestrator**: Manages autonomous conversations with round-robin turn-taking
-- **WebSocket Support**: Real-time message broadcasting
+## 🏗️ Architecture
 
-### Database (PostgreSQL)
-- Users, Agents, Rooms, Messages tables
-- Many-to-many relationships for room-agent associations
-- Optimized indexes for query performance
+The project follows a modern full-stack architecture:
 
-## Installation
+### Frontend
+- **Framework**: Vue 3 (Composition API)
+- **Styling**: Tailwind CSS with custom glassmorphism design
+- **State Management**: Reactive refs and centralized stores
+- **Routing**: Vue Router
+
+### Backend
+- **Framework**: FastAPI (High-performance async Python framework)
+- **Database**: PostgreSQL with SQLAlchemy ORM
+- **AI Orchestration**: Custom `Orchestrator` service for turn-taking and context management
+- **LLM Abstraction**: Adapter pattern to unify different AI providers
+
+## 🚀 Getting Started
 
 ### Prerequisites
+- Node.js 16+
 - Python 3.10+
 - PostgreSQL 12+
-- (Optional) Ollama for local models
+- (Optional) Ollama for running local models
 
-### Backend Setup
-
-1. **Clone the repository**
-   ```bash
-   git clone <repository-url>
-   cd robot-chat/backend
-   ```
-
-2. **Create virtual environment**
-   ```bash
-   python -m venv venv
-   source venv/bin/activate  # On Windows: venv\Scripts\activate
-   ```
-
-3. **Install dependencies**
-   ```bash
-   pip install -r requirements.txt
-   ```
-
-4. **Setup PostgreSQL database**
-   ```bash
-   # Create database
-   createdb ai_chat_db
-   
-   # Initialize schema
-   psql -d ai_chat_db -f schema.sql
-   ```
-
-5. **Configure environment variables**
-   ```bash
-   cp .env.example .env
-   # Edit .env with your configuration
-   ```
-
-6. **Run the server**
-   ```bash
-   # Development mode
-   python -m app.main
-   
-   # Or with uvicorn
-   uvicorn app.main:app --reload --host 0.0.0.0 --port 8000
-   ```
-
-## API Documentation
-
-Once the server is running, visit:
-- **Swagger UI**: http://localhost:8000/docs
-- **ReDoc**: http://localhost:8000/redoc
-
-### Key Endpoints
-
-#### Agents
-- `POST /api/agents` - Create a new AI agent
-- `GET /api/agents` - List all agents
-- `GET /api/agents/{id}` - Get specific agent
-- `PATCH /api/agents/{id}` - Update agent
-- `DELETE /api/agents/{id}` - Delete agent
-
-#### Rooms
-- `POST /api/rooms` - Create a new room
-- `GET /api/rooms` - List all rooms
-- `GET /api/rooms/{id}` - Get specific room
-- `POST /api/rooms/{id}/join` - Add agent to room
-- `POST /api/rooms/{id}/start` - Start autonomous conversation
-- `POST /api/rooms/{id}/stop` - Stop conversation
-- `GET /api/rooms/{id}/messages` - Get room messages
-
-#### WebSocket
-- `WS /ws/rooms/{id}` - Real-time message updates
-
-## Usage Example
-
-### 1. Create AI Agents
+### 1. Database Setup
 
 ```bash
-# Create a philosopher agent
-curl -X POST http://localhost:8000/api/agents \
-  -H "Content-Type: application/json" \
-  -d '{
-    "name": "Socrates",
-    "provider": "openai",
-    "model_name": "gpt-3.5-turbo",
-    "system_prompt": "You are Socrates, the ancient Greek philosopher. Engage in thoughtful dialogue using the Socratic method.",
-    "temperature": 0.7
-  }'
+# Create the database
+createdb ai_chat_db
 
-# Create a scientist agent
-curl -X POST http://localhost:8000/api/agents \
-  -H "Content-Type: application/json" \
-  -d '{
-    "name": "Einstein",
-    "provider": "openai",
-    "model_name": "gpt-3.5-turbo",
-    "system_prompt": "You are Albert Einstein. Discuss topics with scientific rigor and curiosity.",
-    "temperature": 0.7
-  }'
+# The schema will be automatically initialized by Alembic or on first run
+# Alternatively, use the provided SQL file:
+psql -d ai_chat_db -f backend/schema.sql
 ```
 
-### 2. Create a Room with Agents
+### 2. Backend Setup
 
 ```bash
-curl -X POST http://localhost:8000/api/rooms \
-  -H "Content-Type: application/json" \
-  -d '{
-    "name": "Philosophy Debate",
-    "topic": "What is the nature of reality?",
-    "max_rounds": 10,
-    "agent_ids": [1, 2]
-  }'
+cd backend
+
+# Create virtual environment
+python -m venv venv
+source venv/bin/activate  # Windows: venv\Scripts\activate
+
+# Install dependencies
+pip install -r requirements.txt
+
+# Configure environment
+cp .env.example .env
+# Edit .env with your DB credentials and API keys:
+# DATABASE_URL=postgresql://postgres:password@localhost/ai_chat_db
+# OPENAI_API_KEY=sk-...
+
+# Run the server
+uvicorn app.main:app --reload
 ```
 
-### 3. Start the Conversation
+### 3. Frontend Setup
 
 ```bash
-curl -X POST http://localhost:8000/api/rooms/1/start
+cd frontend
+
+# Install dependencies
+npm install
+
+# Start development server
+npm run dev
 ```
 
-### 4. Watch Messages in Real-Time
+Visit `http://localhost:5173` to open the application.
 
-Connect to WebSocket: `ws://localhost:8000/ws/rooms/1`
+## 📦 Deployment & CI/CD
 
-Or retrieve messages via API:
-```bash
-curl http://localhost:8000/api/rooms/1/messages
-```
+This project uses **GitHub Actions** for automated deployment. The workflow builds a Docker image, pushes it to the GitHub Container Registry (GHCR), and deploys it to your remote server.
 
-## Testing
+### Configuring GitHub Secrets
 
-### Run Unit Tests
+To enable the deployment pipeline, you must configure the following **Secrets** in your GitHub repository settings (`Settings` -> `Secrets and variables` -> `Actions`):
 
-```bash
-# Run all tests
-pytest
+| Secret Name | Description | Example Value |
+|-------------|-------------|---------------|
+| `DATABASE_URL` | **Required**. The full connection string to your production PostgreSQL database. | `postgresql://user:pass@1.2.3.4:5432/dbname` |
+| `SERVER_HOST` | The IP address or domain of your deployment server. | `203.0.113.1` |
+| `SERVER_USER` | The SSH username for logging into the server. | `ubuntu` or `root` |
+| `SSH_PRIVATE_KEY` | The SSH private key content for passwordless authentication. | `-----BEGIN OPENSSH PRIVATE KEY-----...` |
+| `APP_PASSWORD` | (Optional) Admin password for the application if enabled. | `CorrectHorseBatteryStaple` |
 
-# Run with coverage
-pytest --cov=app --cov-report=html
+### Configuring Variables
 
-# Run specific test file
-pytest tests/test_llm_adapter.py
+You can also set non-sensitive configuration in the **Variables** tab:
 
-# Run with verbose output
-pytest -v
-```
+| Variable Name | Description | Example Value |
+|---------------|-------------|---------------|
+| `APP_URL` | The public URL where the app will be accessible. | `https://chat.example.com` |
 
-### Test Coverage
+### Deployment Workflow
 
-The test suite includes:
-- **LLM Adapter Tests**: Testing all providers (OpenAI, DeepSeek, Ollama)
-- **Orchestrator Tests**: Conversation flow, agent selection, edge cases
-- **API Tests**: All endpoints with success and failure scenarios
-- **Edge Case Testing**: Empty lists, invalid inputs, error handling
+1. **Push to `main` branch**: Triggers the build and deploy pipeline.
+2. **Build**: Docker image is built and pushed to `ghcr.io/your-username/robot-chat`.
+3. **Deploy**: The script logs into your server via SSH, pulls the new image, and restarts the container with the updated environment variables (including the `DATABASE_URL` injected from Secrets).
 
-## Configuration
+## 📚 API Documentation
 
-### Environment Variables
+When the backend is running, interactive API documentation is available at:
+- **Swagger UI**: `http://localhost:8000/docs`
+- **ReDoc**: `http://localhost:8000/redoc`
 
-Create a `.env` file based on `.env.example`:
+## 🤝 Contributing
 
-```env
-# Database
-DATABASE_URL=postgresql://user:password@localhost:5432/ai_chat_db
+Contributions are welcome! Please feel free to submit a Pull Request.
 
-# API Keys
-OPENAI_API_KEY=sk-...
-DEEPSEEK_API_KEY=sk-...
+1. Fork the repository
+2. Create your feature branch (`git checkout -b feature/AmazingFeature`)
+3. Commit your changes (`git commit -m 'Add some AmazingFeature'`)
+4. Push to the branch (`git push origin feature/AmazingFeature`)
+5. Open a Pull Request
 
-# Server
-HOST=0.0.0.0
-PORT=8000
-DEBUG=False
+## 📄 License
 
-# Application Settings
-MAX_CONTEXT_MESSAGES=20
-DEFAULT_SLEEP_BETWEEN_MESSAGES=2.0
-```
-
-### Supported LLM Providers
-
-#### OpenAI
-- Models: gpt-3.5-turbo, gpt-4, gpt-4-turbo, etc.
-- Requires: `OPENAI_API_KEY`
-
-#### DeepSeek
-- Models: deepseek-chat, deepseek-coder
-- Requires: `DEEPSEEK_API_KEY`
-- Uses OpenAI-compatible API
-
-#### Ollama (Local)
-- Models: llama3, mistral, codellama, etc.
-- Requires: Ollama running locally
-- Default URL: http://localhost:11434
-
-## Project Structure
-
-```
-backend/
-├── app/
-│   ├── api/              # API endpoints
-│   │   ├── agents.py     # Agent CRUD endpoints
-│   │   ├── rooms.py      # Room management endpoints
-│   │   └── websocket.py  # WebSocket handler
-│   ├── core/             # Core configuration
-│   │   ├── config.py     # Settings management
-│   │   └── database.py   # Database connection
-│   ├── models/           # SQLAlchemy models
-│   │   └── __init__.py   # User, Agent, Room, Message models
-│   ├── schemas/          # Pydantic schemas
-│   │   └── __init__.py   # Request/response models
-│   ├── services/         # Business logic
-│   │   ├── llm_adapter.py    # LLM provider adapters
-│   │   └── orchestrator.py   # Chat orchestration
-│   └── main.py           # FastAPI application
-├── tests/                # Unit tests
-│   ├── test_api.py
-│   ├── test_llm_adapter.py
-│   └── test_orchestrator.py
-├── requirements.txt      # Python dependencies
-├── schema.sql           # Database schema
-└── setup.cfg            # Pytest configuration
-```
-
-## Error Handling
-
-The system includes comprehensive error handling:
-
-- **Validation Errors**: Pydantic validates all input data
-- **Database Errors**: Transactions with rollback on failure
-- **API Errors**: Proper HTTP status codes and error messages
-- **LLM Errors**: Graceful handling of API failures
-- **Logging**: Structured logging for debugging
-
-## Security Considerations
-
-- API keys can be configured per agent or system-wide
-- Database credentials via environment variables
-- CORS configuration for frontend integration
-- Input validation on all endpoints
-
-## Future Enhancements
-
-- [ ] Human interruption during AI conversations
-- [ ] Memory compression for long conversations
-- [ ] Text-to-speech integration
-- [ ] Advanced agent selection strategies
-- [ ] Conversation export functionality
-- [ ] Rate limiting and quota management
-- [ ] Multi-language support
-
-## License
-
-[Specify your license here]
-
-## Contributing
-
-[Contribution guidelines]
+This project is licensed under the MIT License - see the LICENSE file for details.

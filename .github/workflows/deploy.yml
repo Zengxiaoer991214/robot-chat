@@ -48,23 +48,31 @@ jobs:
     steps:
     - name: Deploy to Server via SSH
       uses: appleboy/ssh-action@master
+      env:
+        # Pass secrets as environment variables to the runner first
+        GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        DATABASE_URL: ${{ secrets.DATABASE_URL }}
+        APP_PASSWORD: ${{ secrets.APP_PASSWORD }}
+        APP_URL: ${{ vars.APP_URL }}
+        # GitHub context variables need to be passed explicitly if used in the script securely
+        GITHUB_ACTOR: ${{ github.actor }}
+        GITHUB_REPOSITORY: ${{ github.repository }}
       with:
         host: ${{ secrets.SERVER_HOST }}
         username: ${{ secrets.SERVER_USER }}
         key: ${{ secrets.SSH_PRIVATE_KEY }}
         timeout: "10m"
+        # Pass the environment variables from the runner to the remote server
+        envs: GITHUB_TOKEN,DATABASE_URL,APP_PASSWORD,APP_URL,GITHUB_ACTOR,GITHUB_REPOSITORY
         script: |
           # 准备配置目录
           mkdir -p ~/robot-chat/config
           
-          # 将仓库名转换为小写 (bash 4.0+)
-          REPO_LOWER=$(echo "${{ github.repository }}" | tr '[:upper:]' '[:lower:]')
+          # 将仓库名转换为小写
+          REPO_LOWER=$(echo "$GITHUB_REPOSITORY" | tr '[:upper:]' '[:lower:]')
           
           # 登录 Docker Registry
-          export http_proxy=""
-          export https_proxy=""
-          
-          echo ${{ secrets.GITHUB_TOKEN }} | docker login ghcr.io -u ${{ github.actor }} --password-stdin
+          echo "$GITHUB_TOKEN" | docker login ghcr.io -u "$GITHUB_ACTOR" --password-stdin
           
           # 拉取最新镜像
           docker pull ghcr.io/$REPO_LOWER:latest
@@ -82,7 +90,7 @@ jobs:
             --restart unless-stopped \
             --network host \
             -e APP_PORT=9009 \
-            -e DATABASE_URL="${{ secrets.DATABASE_URL }}" \
-            -e APP_PASSWORD="${{ secrets.APP_PASSWORD }}" \
-            -e APP_URL="${{ vars.APP_URL }}" \
+            -e DATABASE_URL="$DATABASE_URL" \
+            -e APP_PASSWORD="$APP_PASSWORD" \
+            -e APP_URL="$APP_URL" \
             ghcr.io/$REPO_LOWER:latest

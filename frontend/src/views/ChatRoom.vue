@@ -1,134 +1,233 @@
 <template>
-  <div class="h-[calc(100vh-4rem)] flex flex-col md:flex-row gap-4">
-    <!-- Sidebar (Agents & Info) -->
-    <div class="w-full md:w-1/4 bg-white shadow rounded-lg p-4 flex flex-col h-auto md:h-full overflow-hidden">
-      <div v-if="loadingRoom" class="text-center py-4">Loading room...</div>
-      <template v-else-if="room">
-        <div class="mb-4">
-          <h2 class="text-xl font-bold text-gray-900">{{ room.name }}</h2>
-          <p class="text-sm text-gray-500 mt-1">{{ room.topic }}</p>
+  <div class="h-[calc(100vh-7rem)] flex flex-col md:flex-row gap-4 md:gap-6 p-2 md:p-4 max-w-7xl mx-auto relative">
+    
+    <!-- Mobile Header (Visible only on mobile) -->
+    <div class="md:hidden flex-shrink-0 flex justify-between items-center bg-white/80 backdrop-blur-md p-3 rounded-xl border border-gray-100 shadow-sm z-10">
+      <div class="min-w-0 flex-1 mr-2">
+        <h2 class="font-bold text-gray-900 truncate">{{ room?.name || 'Chat Room' }}</h2>
+        <div class="flex items-center text-xs text-gray-500">
+          <span :class="statusColorClass(room?.status || '')" class="inline-block w-2 h-2 rounded-full mr-1.5"></span>
+          {{ room?.status }} • {{ room?.current_rounds }}/{{ room?.max_rounds }}
         </div>
-
-        <div class="flex items-center justify-between mb-4 bg-gray-50 p-2 rounded">
-          <span :class="statusClass(room.status)" class="px-2 py-1 text-xs rounded-full uppercase font-bold">
-            {{ room.status }}
-          </span>
-          <span class="text-sm text-gray-500">
-            {{ room.current_rounds }} / {{ room.max_rounds }} rounds
-          </span>
-        </div>
-
-        <div class="flex-1 overflow-y-auto mb-4">
-          <h3 class="text-sm font-semibold text-gray-500 uppercase tracking-wider mb-2">Roles</h3>
-          <ul class="space-y-3">
-            <li v-for="role in room.roles" :key="role.id" class="flex items-center">
-              <div class="h-8 w-8 rounded-full bg-indigo-100 flex items-center justify-center text-indigo-600 font-bold mr-2 text-xs">
-                {{ role.name.charAt(0) }}
-              </div>
-              <div>
-                <p class="text-sm font-medium text-gray-900">{{ role.name }}</p>
-                <p class="text-xs text-gray-500">{{ role.profession || 'Participant' }}</p>
-              </div>
-            </li>
-          </ul>
-        </div>
-
-        <div class="mt-auto space-y-2">
-          <button
-            v-if="room.status !== 'running'"
-            @click="startChat"
-            :disabled="starting || room.current_rounds >= room.max_rounds"
-            class="w-full flex justify-center py-2 px-4 border border-transparent rounded-md shadow-sm text-sm font-medium text-white bg-green-600 hover:bg-green-700 focus:outline-none disabled:opacity-50"
-          >
-            {{ room.status === 'finished' ? 'Finished' : (starting ? 'Starting...' : 'Start Chat') }}
-          </button>
-          
-          <button
-            v-if="room.status === 'running'"
-            @click="stopChat"
-            :disabled="stopping"
-            class="w-full flex justify-center py-2 px-4 border border-transparent rounded-md shadow-sm text-sm font-medium text-white bg-red-600 hover:bg-red-700 focus:outline-none disabled:opacity-50"
-          >
-            {{ stopping ? 'Pausing...' : 'Pause Chat' }}
-          </button>
-
-          <button
-            @click="restartChat"
-            :disabled="restarting || starting || stopping"
-            class="w-full flex justify-center py-2 px-4 border border-transparent rounded-md shadow-sm text-sm font-medium text-white bg-yellow-600 hover:bg-yellow-700 focus:outline-none disabled:opacity-50"
-          >
-            {{ restarting ? 'Restarting...' : 'Restart Session' }}
-          </button>
-
-          <button
-            @click="deleteRoom"
-            :disabled="deleting"
-            class="w-full flex justify-center py-2 px-4 border border-transparent rounded-md shadow-sm text-sm font-medium text-white bg-gray-600 hover:bg-gray-700 focus:outline-none disabled:opacity-50"
-          >
-            {{ deleting ? 'Deleting...' : 'Delete Room' }}
-          </button>
-          
-          <button
-            @click="router.push('/')"
-            class="w-full flex justify-center py-2 px-4 border border-gray-300 rounded-md shadow-sm text-sm font-medium text-gray-700 bg-white hover:bg-gray-50 focus:outline-none"
-          >
-            Back to Dashboard
-          </button>
-        </div>
-      </template>
+      </div>
+      <button 
+        @click="mobileSidebarOpen = true"
+        class="p-2 text-indigo-600 bg-indigo-50 rounded-lg hover:bg-indigo-100 transition-colors"
+      >
+        <svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+          <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M13 16h-1v-4h-1m1-4h.01M21 12a9 9 0 11-18 0 9 9 0 0118 0z" />
+        </svg>
+      </button>
     </div>
 
-    <!-- Main Chat Area -->
-    <div class="flex-1 bg-white shadow rounded-lg flex flex-col h-full overflow-hidden">
-      <div class="flex-1 overflow-y-auto p-4 space-y-4" ref="chatContainer">
-        <div v-if="loadingMessages" class="text-center py-4 text-gray-500">Loading messages...</div>
-        <div v-else-if="messages.length === 0" class="text-center py-12 text-gray-500">
-          <p>No messages yet. Start the chat to begin!</p>
-        </div>
-        
-        <div v-for="msg in messages" :key="msg.id" class="flex flex-col">
-          <!-- System Message -->
-          <div v-if="!msg.role_id" class="flex justify-center my-2">
-            <span class="bg-gray-100 text-gray-600 text-xs px-2 py-1 rounded-full">
-              {{ msg.content }}
+    <!-- Sidebar (Agents & Info) - Desktop: Static, Mobile: Modal Overlay -->
+    <div 
+      class="flex-shrink-0 flex flex-col gap-4 transition-all duration-300"
+      :class="[
+        mobileSidebarOpen ? 'fixed inset-0 z-50 bg-gray-50/95 backdrop-blur-sm p-4 overflow-y-auto' : 'hidden md:flex w-full md:w-80'
+      ]"
+    >
+      <!-- Mobile Close Button -->
+      <div class="md:hidden flex justify-end mb-2">
+        <button 
+          @click="mobileSidebarOpen = false"
+          class="p-2 text-gray-500 hover:text-gray-900 bg-white rounded-full shadow-sm"
+        >
+          <svg class="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M6 18L18 6M6 6l12 12" />
+          </svg>
+        </button>
+      </div>
+
+      <!-- Room Info Card -->
+      <div class="bg-white/80 backdrop-blur-md shadow-sm border border-gray-100 rounded-2xl p-5 transition-all hover:shadow-md">
+        <div v-if="loadingRoom" class="text-center py-4 text-gray-400 animate-pulse">Loading room...</div>
+        <template v-else-if="room">
+          <div class="mb-4">
+            <h2 class="text-xl font-semibold text-gray-900 tracking-tight">{{ room.name }}</h2>
+            <p class="text-sm text-gray-500 mt-1 font-medium">{{ room.topic }}</p>
+          </div>
+
+          <div class="flex items-center justify-between mb-6 bg-gray-50/50 p-3 rounded-xl border border-gray-100">
+            <div class="flex items-center gap-2">
+              <span class="relative flex h-2.5 w-2.5">
+                <span v-if="room.status === 'running'" class="animate-ping absolute inline-flex h-full w-full rounded-full bg-green-400 opacity-75"></span>
+                <span :class="statusColorClass(room.status)" class="relative inline-flex rounded-full h-2.5 w-2.5"></span>
+              </span>
+              <span class="text-xs font-semibold uppercase tracking-wider text-gray-600">{{ room.status }}</span>
+            </div>
+            <span class="text-xs font-mono text-gray-400 bg-white px-2 py-1 rounded-md shadow-sm border border-gray-100">
+              {{ room.current_rounds }} / {{ room.max_rounds }}
             </span>
           </div>
-          
-          <!-- Role Message -->
-          <div v-else class="flex space-x-3" :class="msg.role === 'user' ? 'justify-end' : ''">
-            <div class="flex-shrink-0" v-if="msg.role !== 'user'">
-              <div class="h-10 w-10 rounded-full bg-indigo-100 flex items-center justify-center text-indigo-600 font-bold text-lg">
-                {{ getRoleName(msg.role_id).charAt(0) }}
+
+          <!-- Controls -->
+          <div class="space-y-3">
+            <button
+              v-if="room.status !== 'running'"
+              @click="startChat"
+              :disabled="starting || room.current_rounds >= room.max_rounds"
+              class="group w-full flex items-center justify-center py-2.5 px-4 rounded-xl shadow-sm text-sm font-medium text-white bg-[#007AFF] hover:bg-[#0062CC] focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-blue-500 disabled:opacity-50 disabled:cursor-not-allowed transition-all active:scale-95"
+            >
+              <span v-if="starting" class="mr-2">
+                <svg class="animate-spin h-4 w-4 text-white" xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24">
+                  <circle class="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" stroke-width="4"></circle>
+                  <path class="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z"></path>
+                </svg>
+              </span>
+              {{ room.status === 'finished' ? 'Finished' : (starting ? 'Starting...' : 'Start Chat') }}
+            </button>
+            
+            <button
+              v-if="room.status === 'running'"
+              @click="stopChat"
+              :disabled="stopping"
+              class="group w-full flex items-center justify-center py-2.5 px-4 rounded-xl shadow-sm text-sm font-medium text-white bg-[#FF3B30] hover:bg-[#D70015] focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-red-500 disabled:opacity-50 transition-all active:scale-95"
+            >
+              <span v-if="stopping" class="mr-2">
+                <svg class="animate-spin h-4 w-4 text-white" xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24">
+                  <circle class="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" stroke-width="4"></circle>
+                  <path class="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z"></path>
+                </svg>
+              </span>
+              {{ stopping ? 'Pausing...' : 'Pause Chat' }}
+            </button>
+
+            <div class="grid grid-cols-2 gap-3 pt-2">
+              <button
+                @click="restartChat"
+                :disabled="restarting || starting || stopping"
+                class="flex items-center justify-center py-2 px-3 border border-gray-200 rounded-xl shadow-sm text-xs font-medium text-gray-700 bg-white hover:bg-gray-50 hover:border-gray-300 focus:outline-none transition-colors"
+              >
+                Restart
+              </button>
+              <button
+                @click="deleteRoom"
+                :disabled="deleting"
+                class="flex items-center justify-center py-2 px-3 border border-gray-200 rounded-xl shadow-sm text-xs font-medium text-red-600 bg-white hover:bg-red-50 hover:border-red-200 focus:outline-none transition-colors"
+              >
+                Delete
+              </button>
+            </div>
+            
+            <button
+              @click="router.push('/')"
+              class="w-full flex items-center justify-center py-2 px-4 rounded-xl text-sm font-medium text-gray-500 hover:text-gray-900 hover:bg-gray-100 transition-colors"
+            >
+              Back to Dashboard
+            </button>
+          </div>
+        </template>
+      </div>
+
+      <!-- Roles List -->
+      <div class="bg-white/80 backdrop-blur-md shadow-sm border border-gray-100 rounded-2xl p-5 flex-1 overflow-hidden flex flex-col min-h-[200px]">
+        <h3 class="text-xs font-semibold text-gray-400 uppercase tracking-wider mb-4 px-1">Participants</h3>
+        <div class="overflow-y-auto pr-2 -mr-2 space-y-1 custom-scrollbar">
+          <div v-if="room" v-for="role in room.roles" :key="role.id" class="group flex items-center p-2 rounded-xl hover:bg-gray-50 transition-colors cursor-default">
+            <div class="relative">
+              <div class="h-10 w-10 rounded-full bg-gradient-to-br from-indigo-400 to-purple-500 flex items-center justify-center text-white font-bold shadow-sm ring-2 ring-white">
+                {{ role.name.charAt(0) }}
+              </div>
+              <div class="absolute -bottom-1 -right-1 bg-white rounded-full p-0.5" v-if="activeRoleId === role.id">
+                 <div class="w-2.5 h-2.5 bg-green-500 rounded-full animate-pulse"></div>
               </div>
             </div>
-            <div class="flex-1 min-w-0">
-              <div class="flex items-center space-x-2" :class="msg.role === 'user' ? 'justify-end' : ''">
-                <p class="text-sm font-medium text-gray-900">{{ getRoleName(msg.role_id) }}</p>
-                <span class="text-xs text-gray-500">{{ formatDate(msg.created_at) }}</span>
-              </div>
-              <div class="mt-1 bg-gray-50 p-3 rounded-lg text-sm text-gray-900 markdown-body" v-html="renderMarkdown(msg.content)"></div>
-            </div>
-            <div class="flex-shrink-0" v-if="msg.role === 'user'">
-              <div class="h-10 w-10 rounded-full bg-gray-300 flex items-center justify-center text-gray-600 font-bold text-lg">
-                U
-              </div>
+            <div class="ml-3 min-w-0">
+              <p class="text-sm font-semibold text-gray-900 truncate">{{ role.name }}</p>
+              <p class="text-xs text-gray-500 truncate">{{ role.profession || 'Participant' }}</p>
             </div>
           </div>
         </div>
       </div>
+    </div>
+
+    <!-- Main Chat Area -->
+    <div class="flex-1 bg-white/90 backdrop-blur-sm shadow-sm border border-gray-100 rounded-2xl flex flex-col h-full overflow-hidden relative">
+      <!-- Chat Header (optional context) -->
+      <div class="absolute top-0 left-0 right-0 h-6 bg-gradient-to-b from-white/90 to-transparent z-10 pointer-events-none"></div>
+
+      <div class="flex-1 overflow-y-auto p-6 space-y-6 custom-scrollbar scroll-smooth" ref="chatContainer">
+        <div v-if="loadingMessages" class="flex flex-col items-center justify-center h-full text-gray-400 space-y-3">
+           <svg class="animate-spin h-8 w-8 text-indigo-500" xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24">
+              <circle class="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" stroke-width="4"></circle>
+              <path class="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z"></path>
+           </svg>
+           <p class="text-sm font-medium">Loading conversation...</p>
+        </div>
+        
+        <div v-else-if="messages.length === 0" class="flex flex-col items-center justify-center h-full text-gray-400">
+          <div class="w-16 h-16 bg-gray-100 rounded-full flex items-center justify-center mb-4">
+            <svg class="w-8 h-8 text-gray-400" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+              <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M8 12h.01M12 12h.01M16 12h.01M21 12c0 4.418-4.03 8-9 8a9.863 9.863 0 01-4.255-.949L3 20l1.395-3.72C3.512 15.042 3 13.574 3 12c0-4.418 4.03-8 9-8s9 3.582 9 8z"></path>
+            </svg>
+          </div>
+          <p class="text-sm">No messages yet. Start the chat to begin!</p>
+        </div>
+        
+        <transition-group name="message-fade">
+          <div v-for="msg in messages" :key="msg.id" class="flex flex-col">
+            <!-- System Message -->
+            <div v-if="!msg.role_id && !msg.agent_id" class="flex justify-center my-4">
+              <span class="bg-gray-100/80 backdrop-blur-sm border border-gray-200 text-gray-500 text-xs px-3 py-1.5 rounded-full shadow-sm font-medium">
+                {{ msg.content }}
+              </span>
+            </div>
+            
+            <!-- Role Message -->
+            <div v-else class="flex space-x-3 max-w-[85%] md:max-w-[75%]" :class="msg.role === 'user' ? 'ml-auto justify-end' : ''">
+              <!-- Avatar (Left) -->
+              <div class="flex-shrink-0 flex flex-col justify-end" v-if="msg.role !== 'user'">
+                <div class="h-8 w-8 rounded-full bg-gradient-to-br from-indigo-400 to-purple-500 flex items-center justify-center text-white font-bold text-xs shadow-sm ring-2 ring-white">
+                  {{ getRoleName(msg.role_id).charAt(0) }}
+                </div>
+              </div>
+
+              <!-- Message Content -->
+              <div class="flex flex-col" :class="msg.role === 'user' ? 'items-end' : 'items-start'">
+                <div class="flex items-baseline space-x-2 mb-1" :class="msg.role === 'user' ? 'flex-row-reverse space-x-reverse' : ''">
+                  <span class="text-xs font-semibold text-gray-900">{{ msg.role === 'user' ? 'You' : getRoleName(msg.role_id) }}</span>
+                  <span class="text-[10px] text-gray-400">{{ formatDate(msg.created_at) }}</span>
+                </div>
+                
+                <div 
+                  class="px-4 py-2.5 shadow-sm text-sm leading-relaxed markdown-body break-words"
+                  :class="[
+                    msg.role === 'user' 
+                      ? 'bg-[#007AFF] text-white rounded-2xl rounded-tr-sm' 
+                      : 'bg-[#F2F2F7] text-gray-900 rounded-2xl rounded-tl-sm'
+                  ]"
+                  v-html="renderMarkdown(msg.content)"
+                ></div>
+              </div>
+
+              <!-- Avatar (Right - User) -->
+              <div class="flex-shrink-0 flex flex-col justify-end" v-if="msg.role === 'user'">
+                <div class="h-8 w-8 rounded-full bg-gradient-to-br from-blue-400 to-blue-600 flex items-center justify-center text-white font-bold text-xs shadow-sm ring-2 ring-white">
+                  U
+                </div>
+              </div>
+            </div>
+          </div>
+        </transition-group>
+      </div>
       
-      <!-- Connection Status -->
-      <div class="bg-gray-50 px-4 py-2 text-xs text-right border-t border-gray-200">
-        <span :class="connected ? 'text-green-600' : 'text-red-600'">
-          ● {{ connected ? 'Connected' : 'Disconnected' }}
-        </span>
+      <!-- Connection Status Footer -->
+      <div class="absolute bottom-4 right-6 z-10 transition-opacity duration-500" :class="connected ? 'opacity-0 hover:opacity-100' : 'opacity-100'">
+        <div class="flex items-center space-x-1.5 bg-white/90 backdrop-blur px-2 py-1 rounded-full shadow-sm border border-gray-100">
+          <span class="relative flex h-2 w-2">
+            <span :class="connected ? 'bg-green-500' : 'bg-red-500'" class="animate-ping absolute inline-flex h-full w-full rounded-full opacity-75"></span>
+            <span :class="connected ? 'bg-green-500' : 'bg-red-500'" class="relative inline-flex rounded-full h-2 w-2"></span>
+          </span>
+          <span class="text-[10px] font-medium text-gray-500">{{ connected ? 'Live' : 'Offline' }}</span>
+        </div>
       </div>
     </div>
   </div>
 </template>
 
 <script setup lang="ts">
-import { ref, onMounted, onUnmounted, nextTick } from 'vue'
+import { ref, onMounted, onUnmounted, nextTick, computed } from 'vue'
 import { useRoute, useRouter } from 'vue-router'
 import { roomApi, createWebSocket } from '@/services/api'
 import type { Room, Message, WSMessage, Role } from '@/types'
@@ -147,8 +246,18 @@ const stopping = ref(false)
 const restarting = ref(false)
 const deleting = ref(false)
 const connected = ref(false)
+const mobileSidebarOpen = ref(false)
 const chatContainer = ref<HTMLElement | null>(null)
 let socket: WebSocket | null = null
+
+// Active role highlight (simulated for now)
+const activeRoleId = computed(() => {
+  if (messages.value.length > 0) {
+    const lastMsg = messages.value[messages.value.length - 1]
+    return lastMsg.role_id
+  }
+  return null
+})
 
 // Helper to get role name
 const getRoleName = (roleId?: number | null) => {
@@ -157,10 +266,19 @@ const getRoleName = (roleId?: number | null) => {
   return role ? role.name : 'Unknown Role'
 }
 
+// Status color helper
+const statusColorClass = (status: string) => {
+  switch (status) {
+    case 'running': return 'bg-green-500'
+    case 'finished': return 'bg-gray-500'
+    default: return 'bg-yellow-500'
+  }
+}
+
 // Format date
 const formatDate = (dateStr?: string) => {
   if (!dateStr) return ''
-  return new Date(dateStr).toLocaleTimeString()
+  return new Date(dateStr).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })
 }
 
 // Render markdown
@@ -168,39 +286,31 @@ const renderMarkdown = (content: string) => {
   return marked(content)
 }
 
-// Status class
-const statusClass = (status: string) => {
-  switch (status) {
-    case 'running': return 'bg-green-100 text-green-800'
-    case 'finished': return 'bg-gray-100 text-gray-800'
-    default: return 'bg-yellow-100 text-yellow-800'
-  }
-}
-
 // Scroll to bottom
 const scrollToBottom = async () => {
   await nextTick()
   if (chatContainer.value) {
-    chatContainer.value.scrollTop = chatContainer.value.scrollHeight
+    chatContainer.value.scrollTo({
+      top: chatContainer.value.scrollHeight,
+      behavior: 'smooth'
+    })
   }
 }
 
 // Load initial data
 const loadData = async () => {
   try {
-    // Load room first to get session_id
     const roomData = await roomApi.getById(roomId)
     room.value = roomData
     loadingRoom.value = false
     
-    // Then load messages for current session
     const msgsData = await roomApi.getMessages(roomId, roomData.session_id)
     messages.value = msgsData
     loadingMessages.value = false
     scrollToBottom()
   } catch (error) {
     console.error('Failed to load room data:', error)
-    alert('Failed to load room')
+    // Removed alert for cleaner UX
     router.push('/')
   }
 }
@@ -220,9 +330,6 @@ const connectWebSocket = () => {
       
       if (data.type === 'message') {
         const msgData = data.data
-        // Add to messages if not already there
-        
-        // Construct a valid Message object with required fields
         const msg: Message = {
           id: msgData.id || Date.now(),
           room_id: roomId,
@@ -233,14 +340,9 @@ const connectWebSocket = () => {
           created_at: msgData.created_at || new Date().toISOString()
         }
 
-        // Check if message ID exists to prevent dupes if we reload
         if (!messages.value.find((m: Message) => m.id === msg.id)) {
           messages.value.push(msg)
           scrollToBottom()
-          
-          // If system message and it's round increment related, update rounds?
-          // Actually better to just refresh room status occasionally or infer from messages?
-          // For now, let's just increment local round counter if a role spoke
           if (msg.role_id && room.value) {
             room.value.current_rounds++
           }
@@ -254,7 +356,6 @@ const connectWebSocket = () => {
   socket.onclose = () => {
     connected.value = false
     console.log('WebSocket disconnected')
-    // Reconnect logic could go here
   }
   
   socket.onerror = (error) => {
@@ -271,7 +372,6 @@ const startChat = async () => {
     room.value.status = 'running'
   } catch (error) {
     console.error('Failed to start chat:', error)
-    alert('Failed to start chat')
   } finally {
     starting.value = false
   }
@@ -282,10 +382,9 @@ const stopChat = async () => {
   try {
     stopping.value = true
     await roomApi.stop(roomId)
-    room.value.status = 'idle' // or whatever backend sets
+    room.value.status = 'idle'
   } catch (error) {
     console.error('Failed to stop chat:', error)
-    alert('Failed to stop chat')
   } finally {
     stopping.value = false
   }
@@ -293,23 +392,21 @@ const stopChat = async () => {
 
 const restartChat = async () => {
   if (!room.value) return
-  if (!confirm('Start a new conversation session? Existing messages will be saved in history.')) return
+  if (!confirm('Start a new conversation session?')) return
   
   try {
     restarting.value = true
     await roomApi.restart(roomId)
-    // Reload everything
     await loadData()
   } catch (error) {
     console.error('Failed to restart chat:', error)
-    alert('Failed to restart chat')
   } finally {
     restarting.value = false
   }
 }
 
 const deleteRoom = async () => {
-  if (!confirm('Are you sure you want to delete this room? This cannot be undone.')) return
+  if (!confirm('Delete this room?')) return
   
   try {
     deleting.value = true
@@ -317,13 +414,11 @@ const deleteRoom = async () => {
     router.push('/')
   } catch (error) {
     console.error('Failed to delete room:', error)
-    alert('Failed to delete room')
   } finally {
     deleting.value = false
   }
 }
 
-// Lifecycle
 onMounted(async () => {
   await loadData()
   connectWebSocket()
@@ -336,14 +431,52 @@ onUnmounted(() => {
 })
 </script>
 
-<style>
-.markdown-body p {
+<style scoped>
+/* Markdown Styles override for chat */
+:deep(.markdown-body) {
+  background-color: transparent !important;
+  font-family: inherit !important;
+  font-size: 0.95rem;
+}
+:deep(.markdown-body p) {
   margin-bottom: 0.5rem;
 }
-.markdown-body pre {
-  background-color: #f3f4f6;
-  padding: 0.5rem;
-  border-radius: 0.25rem;
-  overflow-x: auto;
+:deep(.markdown-body p:last-child) {
+  margin-bottom: 0;
+}
+:deep(.markdown-body pre) {
+  background-color: rgba(0, 0, 0, 0.05);
+  padding: 0.75rem;
+  border-radius: 0.5rem;
+  margin: 0.5rem 0;
+}
+
+/* Custom Scrollbar */
+.custom-scrollbar::-webkit-scrollbar {
+  width: 6px;
+}
+.custom-scrollbar::-webkit-scrollbar-track {
+  background: transparent;
+}
+.custom-scrollbar::-webkit-scrollbar-thumb {
+  background-color: rgba(156, 163, 175, 0.3);
+  border-radius: 20px;
+}
+.custom-scrollbar::-webkit-scrollbar-thumb:hover {
+  background-color: rgba(156, 163, 175, 0.5);
+}
+
+/* Message Transitions */
+.message-fade-enter-active,
+.message-fade-leave-active {
+  transition: all 0.4s cubic-bezier(0.25, 1, 0.5, 1);
+}
+.message-fade-enter-from {
+  opacity: 0;
+  transform: translateY(20px) scale(0.95);
+}
+.message-fade-leave-to {
+  opacity: 0;
+  transform: translateY(-20px);
 }
 </style>

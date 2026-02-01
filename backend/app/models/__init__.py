@@ -45,7 +45,7 @@ class Agent(Base):
     
     # Relationships
     messages = relationship("Message", back_populates="agent")
-    roles = relationship("Role", back_populates="agent")
+    roles = relationship("Role", back_populates="agent", cascade="all, delete-orphan")
 
 
 class Room(Base):

@@ -83,7 +83,7 @@ async def get_rooms(skip: int = 0, limit: int = 100, db: Session = Depends(get_d
         List of rooms
     """
     try:
-        rooms = db.query(Room).offset(skip).limit(limit).all()
+        rooms = db.query(Room).order_by(Room.created_at.desc()).offset(skip).limit(limit).all()
         return rooms
     except Exception as e:
         logger.error(f"Error fetching rooms: {str(e)}")
@@ -220,7 +220,7 @@ async def start_room(room_id: int, background_tasks: BackgroundTasks, db: Sessio
             )
         
         # Create orchestrator
-        orchestrator = ChatOrchestrator(room_id, db)
+        orchestrator = ChatOrchestrator(room_id)
         active_orchestrators[room_id] = orchestrator
         
         # Start conversation in background

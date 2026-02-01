@@ -53,7 +53,7 @@ async def get_roles(skip: int = 0, limit: int = 100, db: Session = Depends(get_d
     Get all available roles.
     """
     try:
-        roles = db.query(Role).offset(skip).limit(limit).all()
+        roles = db.query(Role).order_by(Role.created_at.desc()).offset(skip).limit(limit).all()
         return roles
     except Exception as e:
         logger.error(f"Error fetching roles: {str(e)}")

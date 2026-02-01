@@ -6,6 +6,7 @@ from abc import ABC, abstractmethod
 from typing import List, Dict, Optional
 import httpx
 from openai import AsyncOpenAI
+from google import genai
 from app.core.config import settings
 
 logger = logging.getLogger(__name__)

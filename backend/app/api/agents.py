@@ -72,7 +72,7 @@ async def get_agents(skip: int = 0, limit: int = 100, db: Session = Depends(get_
         List of agents
     """
     try:
-        agents = db.query(Agent).offset(skip).limit(limit).all()
+        agents = db.query(Agent).order_by(Agent.id.desc()).offset(skip).limit(limit).all()
         return agents
     except Exception as e:
         logger.error(f"Error fetching agents: {str(e)}")
@@ -141,6 +141,11 @@ async def update_agent(agent_id: int, agent_data: AgentUpdate, db: Session = Dep
         
         # Update fields
         update_data = agent_data.model_dump(exclude_unset=True)
+        
+        # If api_key_config is provided but empty, do not update it (keep existing)
+        if "api_key_config" in update_data and update_data["api_key_config"] == "":
+            del update_data["api_key_config"]
+            
         for field, value in update_data.items():
             setattr(agent, field, value)
         
