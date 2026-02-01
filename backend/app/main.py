@@ -11,7 +11,7 @@ from starlette.exceptions import HTTPException as StarletteHTTPException
 from fastapi.middleware.cors import CORSMiddleware
 
 from app.core.database import engine, Base
-from app.api import agents, roles, rooms, websocket
+from app.api import agents, roles, rooms, websocket, auth
 
 # Configure logging
 logging.basicConfig(
@@ -70,6 +70,7 @@ app.add_middleware(
 )
 
 # Include routers
+app.include_router(auth.router, prefix="/api/auth", tags=["auth"])
 app.include_router(agents.router)
 app.include_router(roles.router)
 app.include_router(rooms.router)

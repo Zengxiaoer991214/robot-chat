@@ -28,69 +28,67 @@
       <p class="mt-1 text-gray-500">Create roles (personas) to participate in chats.</p>
     </div>
     
-    <div v-else class="grid grid-cols-1 gap-6 sm:grid-cols-2 lg:grid-cols-3">
+    <div v-else class="grid grid-cols-1 gap-6 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4">
       <div
         v-for="role in roles"
         :key="role.id"
-        class="group relative bg-white/70 backdrop-blur-md border border-white/20 rounded-2xl p-6 shadow-sm hover:shadow-xl transition-all duration-300 hover:-translate-y-1"
+        class="group relative bg-white rounded-2xl p-5 shadow-sm hover:shadow-lg transition-all duration-300 border border-gray-100 flex flex-col h-full"
       >
-        <div class="flex items-center mb-4">
-          <div class="h-12 w-12 rounded-2xl bg-gradient-to-br from-indigo-500 to-purple-600 flex items-center justify-center text-white font-bold text-xl shadow-md mr-4">
+        <div class="flex items-start mb-4">
+          <div class="h-10 w-10 rounded-full bg-gray-100 flex items-center justify-center text-gray-600 font-bold text-lg mr-3 flex-shrink-0">
             {{ role.name.charAt(0) }}
           </div>
-          <div>
-            <h3 class="text-lg font-bold text-gray-900 group-hover:text-indigo-600 transition-colors">{{ role.name }}</h3>
-            <p class="text-sm text-gray-500">{{ role.profession || 'Unknown Profession' }}</p>
+          <div class="flex-grow min-w-0">
+            <h3 class="text-base font-semibold text-gray-900 truncate pr-1">{{ role.name }}</h3>
+            <p class="text-xs text-gray-500 truncate">{{ role.profession || 'Unknown' }}</p>
+          </div>
+          <div class="flex-shrink-0 ml-2">
+             <span class="inline-flex items-center px-2 py-0.5 rounded text-xs font-medium bg-gray-100 text-gray-800">
+               {{ role.gender ? role.gender.charAt(0) : '?' }}/{{ role.age || '?' }}
+             </span>
           </div>
         </div>
         
-        <div class="space-y-3 mb-4">
-          <div class="flex justify-between text-sm items-center p-2 bg-gray-50/50 rounded-xl">
-            <span class="text-gray-500 text-xs uppercase tracking-wider font-semibold">Profile</span>
-            <span class="font-medium text-gray-900">{{ role.gender || '?' }} / {{ role.age || '?' }}</span>
-          </div>
-          
-          <div class="flex flex-col space-y-1 p-2 bg-gray-50/50 rounded-xl">
-             <div class="flex justify-between text-sm items-center">
-                <span class="text-gray-500 text-xs uppercase tracking-wider font-semibold">Aggressiveness</span>
-                <span class="font-medium text-gray-900">{{ role.aggressiveness }}/10</span>
+        <div class="space-y-3 flex-grow">
+          <!-- Aggressiveness -->
+          <div>
+             <div class="flex justify-between text-xs items-center mb-1">
+                <span class="text-gray-400 font-medium">Aggressiveness</span>
+                <span class="text-gray-600 font-medium">{{ role.aggressiveness }}/10</span>
              </div>
-             <div class="w-full bg-gray-200 rounded-full h-1.5 mt-1">
-                <div class="bg-indigo-500 h-1.5 rounded-full" :style="{ width: `${role.aggressiveness * 10}%` }"></div>
+             <div class="w-full bg-gray-100 rounded-full h-1">
+                <div class="bg-gray-800 h-1 rounded-full transition-all duration-500" :style="{ width: `${role.aggressiveness * 10}%` }"></div>
              </div>
           </div>
 
-          <div class="text-sm">
-            <span class="text-gray-400 text-xs uppercase tracking-wider font-semibold block mb-1.5">Personality</span>
-            <div class="text-gray-600 bg-gray-50/80 p-3 rounded-xl border border-gray-100 text-xs leading-relaxed line-clamp-3">
-              {{ role.personality || 'No personality description provided.' }}
-            </div>
-          </div>
-          
-          <div class="text-xs text-gray-400 flex items-center justify-end">
-            <span class="bg-gray-100 px-2 py-1 rounded-lg">Agent ID: {{ role.agent_id }}</span>
+          <!-- Personality -->
+          <div class="mt-2">
+            <p class="text-xs text-gray-500 line-clamp-3 leading-relaxed">
+              {{ role.personality || 'No description.' }}
+            </p>
           </div>
         </div>
         
-        <div class="flex justify-end space-x-2 pt-4 border-t border-gray-100/50">
-          <button
-            @click="editRole(role)"
-            class="p-2 text-gray-400 hover:text-indigo-600 hover:bg-indigo-50 rounded-xl transition-colors"
-            title="Edit"
-          >
-            <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-              <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M11 5H6a2 2 0 00-2 2v11a2 2 0 00-2 2h11a2 2 0 00-2-2v-5m-1.414-9.414a2 2 0 112.828 2.828L11.828 15H9v-2.828l8.586-8.586z" />
-            </svg>
-          </button>
-          <button
-            @click="deleteRole(role.id)"
-            class="p-2 text-gray-400 hover:text-red-600 hover:bg-red-50 rounded-xl transition-colors"
-            title="Delete"
-          >
-            <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-              <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19 7l-.867 12.142A2 2 0 0116.138 21H7.862a2 2 0 01-1.995-1.858L5 7m5 4v6m4-6v6m1-10V4a1 1 0 00-1-1h-4a1 1 0 00-1 1v3M4 7h16" />
-            </svg>
-          </button>
+        <div class="flex justify-between items-center mt-4 pt-3 border-t border-gray-50">
+           <span class="text-[10px] text-gray-300">ID: {{ role.agent_id }}</span>
+           <div class="flex space-x-1 opacity-0 group-hover:opacity-100 transition-opacity duration-200">
+            <button
+                @click="editRole(role)"
+                class="p-1.5 text-gray-400 hover:text-gray-900 hover:bg-gray-100 rounded-md transition-colors"
+            >
+                <svg class="w-3.5 h-3.5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M11 5H6a2 2 0 00-2 2v11a2 2 0 00-2 2h11a2 2 0 00-2-2v-5m-1.414-9.414a2 2 0 112.828 2.828L11.828 15H9v-2.828l8.586-8.586z" />
+                </svg>
+            </button>
+            <button
+                @click="deleteRole(role.id)"
+                class="p-1.5 text-gray-400 hover:text-red-600 hover:bg-red-50 rounded-md transition-colors"
+            >
+                <svg class="w-3.5 h-3.5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19 7l-.867 12.142A2 2 0 0116.138 21H7.862a2 2 0 01-1.995-1.858L5 7m5 4v6m4-6v6m1-10V4a1 1 0 00-1-1h-4a1 1 0 00-1 1v3M4 7h16" />
+                </svg>
+            </button>
+           </div>
         </div>
       </div>
     </div>
