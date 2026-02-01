@@ -6,6 +6,7 @@ import RoleManagement from '@/views/RoleManagement.vue'
 import ChatRoom from '@/views/ChatRoom.vue'
 import Login from '@/views/Login.vue'
 import axios from 'axios'
+import { getApiBaseUrl } from '@/services/config'
 
 const routes = [
   {
