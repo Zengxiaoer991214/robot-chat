@@ -83,7 +83,7 @@ jobs:
           
           # 启动新容器
           # 使用 host 网络模式，以便容器可以访问宿主机的代理 (127.0.0.1:7890)
-          # 设置 APP_PORT 环境变量为 9009
+          # 设置 APP_PORT 环境变量为 9811
           
           docker run -d \
             --name robot-chat \
