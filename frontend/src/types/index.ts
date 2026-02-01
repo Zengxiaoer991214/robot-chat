@@ -43,6 +43,7 @@ export interface Message {
   id: number
   room_id: number
   role_id?: number
+  agent_id?: number // Added for compatibility with backend message format
   content: string
   role: 'user' | 'assistant' | 'system'
   sender_name?: string
