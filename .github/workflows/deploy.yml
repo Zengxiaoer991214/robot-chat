@@ -89,7 +89,7 @@ jobs:
             --name robot-chat \
             --restart unless-stopped \
             --network host \
-            -e APP_PORT=9009 \
+            -e APP_PORT=9811 \
             -e DATABASE_URL="$DATABASE_URL" \
             -e APP_PASSWORD="$APP_PASSWORD" \
             -e APP_URL="$APP_URL" \
