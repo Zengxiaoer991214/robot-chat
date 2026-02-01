@@ -49,7 +49,7 @@ const router = createRouter({
 const API_BASE_URL = import.meta.env.VITE_API_URL || 'http://localhost:8000/api'
 
 // Auth Guard
-router.beforeEach(async (to, from, next) => {
+router.beforeEach(async (to, _from, next) => {
   if (to.path === '/login') {
     next()
     return
