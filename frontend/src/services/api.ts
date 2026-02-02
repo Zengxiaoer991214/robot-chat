@@ -69,7 +69,14 @@ export const authApi = {
   logout: () => {
     localStorage.removeItem('token')
     localStorage.removeItem('isAuthenticated')
+    localStorage.removeItem('userId')
+    localStorage.removeItem('username')
     window.location.href = '/login'
+  },
+  
+  getCurrentUserId: (): number | null => {
+    const id = localStorage.getItem('userId')
+    return id ? parseInt(id) : null
   }
 }
 

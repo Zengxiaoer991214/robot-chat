@@ -48,6 +48,7 @@ class AgentBase(BaseModel):
     system_prompt: str = Field(default="", description="System prompt for the agent")
     api_key_config: Optional[str] = None
     temperature: float = Field(default=0.7, ge=0.0, le=2.0)
+    is_global: bool = False
 
 
 class AgentCreate(AgentBase):
@@ -64,11 +65,13 @@ class AgentUpdate(BaseModel):
     system_prompt: Optional[str] = Field(None)
     api_key_config: Optional[str] = None
     temperature: Optional[float] = Field(None, ge=0.0, le=2.0)
+    is_global: Optional[bool] = None
 
 
 class AgentResponse(AgentBase):
     """Schema for agent response."""
     id: int
+    user_id: int
     
     model_config = ConfigDict(from_attributes=True)
 
