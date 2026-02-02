@@ -2,7 +2,7 @@
 Pydantic schemas for API request/response models.
 """
 from datetime import datetime
-from typing import Optional, List
+from typing import Optional, List, Dict, Any
 from pydantic import BaseModel, Field, ConfigDict
 
 
@@ -10,19 +10,32 @@ from pydantic import BaseModel, Field, ConfigDict
 class UserBase(BaseModel):
     """Base user schema."""
     username: str = Field(..., min_length=1, max_length=50)
+    email: Optional[str] = None
 
 
 class UserCreate(UserBase):
     """Schema for creating a user."""
-    pass
+    password: str = Field(..., min_length=6)
 
 
 class UserResponse(UserBase):
     """Schema for user response."""
     id: int
+    is_active: bool
     created_at: datetime
     
     model_config = ConfigDict(from_attributes=True)
+
+
+# ===== Token Schemas =====
+class Token(BaseModel):
+    access_token: str
+    token_type: str
+
+
+class TokenData(BaseModel):
+    username: Optional[str] = None
+
 
 
 # ===== Agent Schemas =====
@@ -48,7 +61,7 @@ class AgentUpdate(BaseModel):
     avatar_url: Optional[str] = None
     provider: Optional[str] = Field(None, min_length=1, max_length=50)
     model_name: Optional[str] = Field(None, min_length=1, max_length=100)
-    system_prompt: Optional[str] = Field(None, min_length=1)
+    system_prompt: Optional[str] = Field(None)
     api_key_config: Optional[str] = None
     temperature: Optional[float] = Field(None, ge=0.0, le=2.0)
 
@@ -103,24 +116,20 @@ class RoomBase(BaseModel):
     """Base room schema."""
     name: str = Field(..., min_length=1, max_length=100)
     topic: str = Field(..., min_length=1)
-    max_rounds: int = Field(default=20, ge=1, le=1000)
+    max_rounds: int = Field(default=20, ge=1, le=100)
+    mode: str = Field(default='debate')  # debate, group_chat
 
 
 class RoomCreate(RoomBase):
     """Schema for creating a room."""
-    creator_id: Optional[int] = None
-    role_ids: List[int] = Field(default_factory=list, min_length=0)
-    mode: str = Field(default='debate', pattern="^(debate|group_chat)$")
+    role_ids: List[int] = Field(..., min_items=2)
 
 
 class RoomResponse(RoomBase):
     """Schema for room response."""
     id: int
-    current_rounds: int
     status: str
-    mode: str
-    session_id: int
-    creator_id: Optional[int]
+    current_rounds: int
     created_at: datetime
     roles: List[RoleResponse] = []
     
@@ -128,15 +137,15 @@ class RoomResponse(RoomBase):
 
 
 class RoomJoin(BaseModel):
-    """Schema for joining roles to a room."""
-    role_id: int
+    """Schema for joining a room."""
+    role_id: Optional[int] = None  # If joining as a specific role (human takeover)
 
 
 # ===== Message Schemas =====
 class MessageBase(BaseModel):
     """Base message schema."""
-    content: str = Field(..., min_length=1)
-    role: str = Field(..., pattern="^(user|assistant|system)$")
+    content: str
+    role: str  # user, assistant, system
 
 
 class MessageCreate(MessageBase):
@@ -144,25 +153,70 @@ class MessageCreate(MessageBase):
     room_id: int
     agent_id: Optional[int] = None
     role_id: Optional[int] = None
-    sender_name: Optional[str] = None
 
 
 class MessageResponse(MessageBase):
     """Schema for message response."""
     id: int
     room_id: int
-    agent_id: Optional[int]
-    role_id: Optional[int]
-    sender_name: Optional[str]
+    agent_id: Optional[int] = None
+    sender_name: Optional[str] = None
+    role_id: Optional[int] = None
     created_at: datetime
-    agent: Optional[AgentResponse] = None
-    sender_role: Optional[RoleResponse] = None
     
     model_config = ConfigDict(from_attributes=True)
 
 
-# ===== WebSocket Schemas =====
-class WSMessage(BaseModel):
-    """WebSocket message schema."""
-    type: str  # message, status, error
-    data: dict
+# ===== Chat Session Schemas =====
+class ChatSessionMessageBase(BaseModel):
+    role: str
+    content: str
+    image_url: Optional[str] = None
+
+
+class ChatSessionMessageCreate(ChatSessionMessageBase):
+    pass
+
+
+class ChatSessionMessageResponse(ChatSessionMessageBase):
+    id: int
+    session_id: int
+    created_at: datetime
+    
+    model_config = ConfigDict(from_attributes=True)
+
+
+class ChatSessionBase(BaseModel):
+    agent_id: int
+    role_id: Optional[int] = None
+    title: Optional[str] = None
+
+
+class ChatSessionCreate(ChatSessionBase):
+    pass
+
+
+class ChatSessionResponse(ChatSessionBase):
+    id: int
+    created_at: datetime
+    updated_at: datetime
+    # messages: List[ChatSessionMessageResponse] = []  # Typically loaded separately
+    
+    model_config = ConfigDict(from_attributes=True)
+
+
+# ===== Chat Schemas =====
+class ChatRequest(BaseModel):
+    """Schema for direct chat request."""
+    agent_id: int
+    role_id: Optional[int] = None
+    session_id: Optional[int] = None
+    message: str
+    image: Optional[str] = None  # Base64 string
+    history: List[Dict[str, str]] = []  # [{"role": "user", "content": "hi"}, ...]
+    stream: bool = False
+
+
+class ChatCompletionResponse(BaseModel):
+    """Schema for direct chat response."""
+    content: str

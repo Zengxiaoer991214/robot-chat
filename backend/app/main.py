@@ -7,11 +7,12 @@ from contextlib import asynccontextmanager
 from fastapi import FastAPI, HTTPException, Request
 from fastapi.staticfiles import StaticFiles
 from fastapi.responses import FileResponse, JSONResponse
+from fastapi.exceptions import RequestValidationError
 from starlette.exceptions import HTTPException as StarletteHTTPException
 from fastapi.middleware.cors import CORSMiddleware
 
 from app.core.database import engine, Base
-from app.api import agents, roles, rooms, websocket, auth
+from app.api import agents, roles, rooms, websocket, auth, chat
 
 # Configure logging
 logging.basicConfig(
@@ -60,6 +61,24 @@ app = FastAPI(
     lifespan=lifespan
 )
 
+@app.exception_handler(RequestValidationError)
+async def validation_exception_handler(request: Request, exc: RequestValidationError):
+    logger.error(f"Validation error: {exc.errors()}")
+    
+    # Construct a friendly error message
+    error_messages = []
+    for error in exc.errors():
+        loc = error.get("loc", [])
+        # Get the last element of loc as the field name (e.g. 'password' from ['body', 'password'])
+        field_name = str(loc[-1]) if loc else "field"
+        msg = error.get("msg", "Invalid value")
+        error_messages.append(f"{field_name}: {msg}")
+        
+    return JSONResponse(
+        status_code=422,
+        content={"detail": "; ".join(error_messages)},
+    )
+
 # Configure CORS
 app.add_middleware(
     CORSMiddleware,
@@ -75,6 +94,7 @@ app.include_router(agents.router)
 app.include_router(roles.router)
 app.include_router(rooms.router)
 app.include_router(websocket.router)
+app.include_router(chat.router)
 
 
 # Serve SPA if dist directory exists (Production)

@@ -7,21 +7,23 @@ from fastapi import APIRouter, Depends, HTTPException, status
 from sqlalchemy.orm import Session
 
 from app.core.database import get_db
-from app.models import Agent
+from app.models import Agent, User
 from app.schemas import AgentCreate, AgentUpdate, AgentResponse
+from app.api.deps import get_current_user
 
 logger = logging.getLogger(__name__)
 router = APIRouter(prefix="/api/agents", tags=["agents"])
 
 
 @router.post("", response_model=AgentResponse, status_code=status.HTTP_201_CREATED)
-async def create_agent(agent_data: AgentCreate, db: Session = Depends(get_db)):
+async def create_agent(agent_data: AgentCreate, db: Session = Depends(get_db), current_user: User = Depends(get_current_user)):
     """
     Create a new AI agent.
     
     Args:
         agent_data: Agent creation data
         db: Database session
+        current_user: Current authenticated user
         
     Returns:
         Created agent
@@ -31,7 +33,7 @@ async def create_agent(agent_data: AgentCreate, db: Session = Depends(get_db)):
     """
     try:
         # Validate provider
-        valid_providers = ["openai", "deepseek", "ollama", "google", "chatanywhere"]
+        valid_providers = ["openai", "deepseek", "ollama", "google", "chatanywhere", "dashscope"]
         if agent_data.provider.lower() not in valid_providers:
             raise HTTPException(
                 status_code=status.HTTP_400_BAD_REQUEST,
@@ -39,12 +41,12 @@ async def create_agent(agent_data: AgentCreate, db: Session = Depends(get_db)):
             )
         
         # Create agent
-        agent = Agent(**agent_data.model_dump())
+        agent = Agent(**agent_data.model_dump(), user_id=current_user.id)
         db.add(agent)
         db.commit()
         db.refresh(agent)
         
-        logger.info(f"Created agent: {agent.name} (ID: {agent.id})")
+        logger.info(f"Created agent: {agent.name} (ID: {agent.id}) for user {current_user.username}")
         return agent
         
     except HTTPException:
@@ -59,20 +61,21 @@ async def create_agent(agent_data: AgentCreate, db: Session = Depends(get_db)):
 
 
 @router.get("", response_model=List[AgentResponse])
-async def get_agents(skip: int = 0, limit: int = 100, db: Session = Depends(get_db)):
+async def get_agents(skip: int = 0, limit: int = 100, db: Session = Depends(get_db), current_user: User = Depends(get_current_user)):
     """
-    Get all available AI agents.
+    Get all available AI agents for the current user.
     
     Args:
         skip: Number of records to skip
         limit: Maximum number of records to return
         db: Database session
+        current_user: Current authenticated user
         
     Returns:
         List of agents
     """
     try:
-        agents = db.query(Agent).order_by(Agent.id.desc()).offset(skip).limit(limit).all()
+        agents = db.query(Agent).filter(Agent.user_id == current_user.id).order_by(Agent.id.desc()).offset(skip).limit(limit).all()
         return agents
     except Exception as e:
         logger.error(f"Error fetching agents: {str(e)}")
@@ -83,22 +86,23 @@ async def get_agents(skip: int = 0, limit: int = 100, db: Session = Depends(get_
 
 
 @router.get("/{agent_id}", response_model=AgentResponse)
-async def get_agent(agent_id: int, db: Session = Depends(get_db)):
+def get_agent(agent_id: int, db: Session = Depends(get_db), current_user: User = Depends(get_current_user)):
     """
     Get a specific agent by ID.
     
     Args:
         agent_id: Agent ID
         db: Database session
+        current_user: Current authenticated user
         
     Returns:
         Agent details
         
     Raises:
-        HTTPException: If agent not found
+        HTTPException: If agent not found or access denied
     """
     try:
-        agent = db.query(Agent).filter(Agent.id == agent_id).first()
+        agent = db.query(Agent).filter(Agent.id == agent_id, Agent.user_id == current_user.id).first()
         if not agent:
             raise HTTPException(
                 status_code=status.HTTP_404_NOT_FOUND,
@@ -116,7 +120,7 @@ async def get_agent(agent_id: int, db: Session = Depends(get_db)):
 
 
 @router.patch("/{agent_id}", response_model=AgentResponse)
-async def update_agent(agent_id: int, agent_data: AgentUpdate, db: Session = Depends(get_db)):
+async def update_agent(agent_id: int, agent_data: AgentUpdate, db: Session = Depends(get_db), current_user: User = Depends(get_current_user)):
     """
     Update an agent.
     
@@ -124,15 +128,16 @@ async def update_agent(agent_id: int, agent_data: AgentUpdate, db: Session = Dep
         agent_id: Agent ID
         agent_data: Update data
         db: Database session
+        current_user: Current authenticated user
         
     Returns:
         Updated agent
         
     Raises:
-        HTTPException: If agent not found or update fails
+        HTTPException: If agent not found or access denied
     """
     try:
-        agent = db.query(Agent).filter(Agent.id == agent_id).first()
+        agent = db.query(Agent).filter(Agent.id == agent_id, Agent.user_id == current_user.id).first()
         if not agent:
             raise HTTPException(
                 status_code=status.HTTP_404_NOT_FOUND,
@@ -167,19 +172,20 @@ async def update_agent(agent_id: int, agent_data: AgentUpdate, db: Session = Dep
 
 
 @router.delete("/{agent_id}", status_code=status.HTTP_204_NO_CONTENT)
-async def delete_agent(agent_id: int, db: Session = Depends(get_db)):
+async def delete_agent(agent_id: int, db: Session = Depends(get_db), current_user: User = Depends(get_current_user)):
     """
     Delete an agent.
     
     Args:
         agent_id: Agent ID
         db: Database session
+        current_user: Current authenticated user
         
     Raises:
-        HTTPException: If agent not found or deletion fails
+        HTTPException: If agent not found or access denied
     """
     try:
-        agent = db.query(Agent).filter(Agent.id == agent_id).first()
+        agent = db.query(Agent).filter(Agent.id == agent_id, Agent.user_id == current_user.id).first()
         if not agent:
             raise HTTPException(
                 status_code=status.HTTP_404_NOT_FOUND,

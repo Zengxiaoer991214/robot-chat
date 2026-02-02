@@ -3,7 +3,7 @@ LLM Adapter Pattern for unified API calls to different providers.
 """
 import logging
 from abc import ABC, abstractmethod
-from typing import List, Dict, Optional
+from typing import List, Dict, Optional, Any
 import httpx
 from openai import AsyncOpenAI
 from google import genai
@@ -44,6 +44,21 @@ class BaseLLMAdapter(ABC):
             Exception: If generation fails
         """
         raise NotImplementedError
+
+    async def generate_stream(self, messages: List[Dict[str, str]], system_prompt: str):
+        """
+        Generate a streaming response from the LLM.
+        
+        Args:
+            messages: List of message dictionaries with 'role' and 'content'
+            system_prompt: System prompt to set the agent's personality
+            
+        Yields:
+            Chunks of generated response text
+        """
+        # Default implementation falls back to non-streaming if not overridden
+        response = await self.generate(messages, system_prompt)
+        yield response
 
 
 class OpenAIAdapter(BaseLLMAdapter):
@@ -255,6 +270,78 @@ class GoogleAdapter(BaseLLMAdapter):
         except Exception as e:
             logger.error(f"Google API error: {str(e)}")
             raise Exception(f"Failed to generate response from Google: {str(e)}")
+
+
+class DashScopeAdapter(BaseLLMAdapter):
+    """Adapter for Aliyun DashScope (BaiLian) API."""
+    
+    def __init__(self, model_name: str = "qwen-plus", temperature: float = 0.7, api_key: Optional[str] = None):
+        super().__init__(model_name, temperature, api_key)
+        # DashScope uses OpenAI-compatible API
+        key = self.api_key or settings.dashscope_api_key
+        if not key:
+            logger.warning("No DashScope API key provided")
+            if settings.debug:
+                key = "dummy-key-for-testing"
+            else:
+                raise ValueError("DashScope API key is required. Set DASHSCOPE_API_KEY environment variable or provide api_key parameter.")
+                
+        self.client = AsyncOpenAI(
+            api_key=key,
+            base_url="https://dashscope.aliyuncs.com/compatible-mode/v1"
+        )
+    
+    async def generate(self, messages: List[Dict[str, str]], system_prompt: str) -> str:
+        """
+        Generate response using DashScope API.
+        """
+        try:
+            # Prepend system message
+            full_messages = [{"role": "system", "content": system_prompt}] + messages
+            
+            logger.info(f"Calling DashScope API with model {self.model_name}")
+            response = await self.client.chat.completions.create(
+                model=self.model_name,
+                messages=full_messages,
+                temperature=self.temperature,
+                max_tokens=1000
+            )
+            
+            content = response.choices[0].message.content
+            if not content:
+                raise ValueError("Empty response from DashScope API")
+                
+            logger.info(f"DashScope API response received: {len(content)} characters")
+            return content.strip()
+            
+        except Exception as e:
+            logger.error(f"DashScope API error: {str(e)}")
+            raise Exception(f"Failed to generate response from DashScope: {str(e)}")
+
+
+    async def generate_stream(self, messages: List[Dict[str, str]], system_prompt: str):
+        """
+        Generate streaming response using DashScope API.
+        """
+        try:
+            full_messages = [{"role": "system", "content": system_prompt}] + messages
+            
+            logger.info(f"Calling DashScope API (stream) with model {self.model_name}")
+            stream = await self.client.chat.completions.create(
+                model=self.model_name,
+                messages=full_messages,
+                temperature=self.temperature,
+                max_tokens=1000,
+                stream=True
+            )
+            
+            async for chunk in stream:
+                if chunk.choices and chunk.choices[0].delta.content:
+                    yield chunk.choices[0].delta.content
+                    
+        except Exception as e:
+            logger.error(f"DashScope API stream error: {str(e)}")
+            yield f"[Error: {str(e)}]"
 
 
 class OllamaAdapter(BaseLLMAdapter):

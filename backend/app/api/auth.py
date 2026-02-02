@@ -1,26 +1,53 @@
-from fastapi import APIRouter, HTTPException, Body
-from pydantic import BaseModel
-from app.core.config import settings
+from datetime import timedelta
+from typing import Any
+from fastapi import APIRouter, Depends, HTTPException, status
+from fastapi.security import OAuth2PasswordRequestForm
+from sqlalchemy.orm import Session
+from app.core.database import get_db
+from app.core.security import verify_password, get_password_hash, create_access_token, ACCESS_TOKEN_EXPIRE_MINUTES
+from app.models import User
+from app.schemas import UserCreate, UserResponse, Token
 
 router = APIRouter()
 
-class LoginRequest(BaseModel):
-    password: str
+@router.post("/token", response_model=Token)
+async def login_for_access_token(form_data: OAuth2PasswordRequestForm = Depends(), db: Session = Depends(get_db)):
+    user = db.query(User).filter(User.username == form_data.username).first()
+    if not user or not verify_password(form_data.password, user.hashed_password):
+        raise HTTPException(
+            status_code=status.HTTP_401_UNAUTHORIZED,
+            detail="Incorrect username or password",
+            headers={"WWW-Authenticate": "Bearer"},
+        )
+    access_token_expires = timedelta(minutes=ACCESS_TOKEN_EXPIRE_MINUTES)
+    access_token = create_access_token(
+        data={"sub": user.username}, expires_delta=access_token_expires
+    )
+    return {"access_token": access_token, "token_type": "bearer"}
 
-@router.get("/status")
-async def get_auth_status():
-    """Check if authentication is required."""
-    return {
-        "required": settings.app_password is not None and len(settings.app_password) > 0
-    }
-
-@router.post("/verify")
-async def verify_password(data: LoginRequest = Body(...)):
-    """Verify the application password."""
-    if not settings.app_password:
-        return {"success": True, "message": "No password configured"}
-        
-    if data.password == settings.app_password:
-        return {"success": True, "token": "authenticated"} # In a real app, return a JWT
-    else:
-        raise HTTPException(status_code=401, detail="Incorrect password")
+@router.post("/register", response_model=UserResponse)
+def register(user_in: UserCreate, db: Session = Depends(get_db)):
+    user = db.query(User).filter(User.username == user_in.username).first()
+    if user:
+        raise HTTPException(
+            status_code=400,
+            detail="Username already registered"
+        )
+    if user_in.email:
+        user_email = db.query(User).filter(User.email == user_in.email).first()
+        if user_email:
+            raise HTTPException(
+                status_code=400,
+                detail="Email already registered"
+            )
+            
+    hashed_password = get_password_hash(user_in.password)
+    db_user = User(
+        username=user_in.username,
+        email=user_in.email,
+        hashed_password=hashed_password
+    )
+    db.add(db_user)
+    db.commit()
+    db.refresh(db_user)
+    return db_user

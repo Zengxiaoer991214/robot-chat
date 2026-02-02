@@ -8,10 +8,11 @@ from fastapi import APIRouter, Depends, HTTPException, status, BackgroundTasks
 from sqlalchemy.orm import Session
 
 from app.core.database import get_db
-from app.models import Room, Agent, Role
+from app.models import Room, Agent, Role, User
 from app.schemas import RoomCreate, RoomResponse, RoomJoin, MessageResponse
 from app.services.orchestrator import ChatOrchestrator
 from app.api.websocket import manager
+from app.api.deps import get_current_user
 
 logger = logging.getLogger(__name__)
 router = APIRouter(prefix="/api/rooms", tags=["rooms"])
@@ -21,13 +22,14 @@ active_orchestrators = {}
 
 
 @router.post("", response_model=RoomResponse, status_code=status.HTTP_201_CREATED)
-async def create_room(room_data: RoomCreate, db: Session = Depends(get_db)):
+def create_room(room_data: RoomCreate, db: Session = Depends(get_db), current_user: User = Depends(get_current_user)):
     """
     Create a new chat room.
     
     Args:
         room_data: Room creation data
         db: Database session
+        current_user: Current authenticated user
         
     Returns:
         Created room
@@ -39,23 +41,24 @@ async def create_room(room_data: RoomCreate, db: Session = Depends(get_db)):
         # Validate role IDs if provided
         roles = []
         if room_data.role_ids:
-            roles = db.query(Role).filter(Role.id.in_(room_data.role_ids)).all()
+            # Check roles exist and belong to user
+            roles = db.query(Role).filter(Role.id.in_(room_data.role_ids), Role.user_id == current_user.id).all()
             if len(roles) != len(room_data.role_ids):
                 raise HTTPException(
                     status_code=status.HTTP_400_BAD_REQUEST,
-                    detail="One or more role IDs are invalid"
+                    detail="One or more role IDs are invalid or access denied"
                 )
 
         # Create room
         room_dict = room_data.model_dump(exclude={"role_ids"})
-        room = Room(**room_dict)
+        room = Room(**room_dict, creator_id=current_user.id)
         room.roles = roles
         
         db.add(room)
         db.commit()
         db.refresh(room)
         
-        logger.info(f"Created room: {room.name} (ID: {room.id})")
+        logger.info(f"Created room: {room.name} (ID: {room.id}) for user {current_user.username}")
         return room
         
     except HTTPException:
@@ -70,20 +73,12 @@ async def create_room(room_data: RoomCreate, db: Session = Depends(get_db)):
 
 
 @router.get("", response_model=List[RoomResponse])
-async def get_rooms(skip: int = 0, limit: int = 100, db: Session = Depends(get_db)):
+async def get_rooms(skip: int = 0, limit: int = 100, db: Session = Depends(get_db), current_user: User = Depends(get_current_user)):
     """
-    Get all rooms.
-    
-    Args:
-        skip: Number of records to skip
-        limit: Maximum number of records to return
-        db: Database session
-        
-    Returns:
-        List of rooms
+    Get all rooms for current user.
     """
     try:
-        rooms = db.query(Room).order_by(Room.created_at.desc()).offset(skip).limit(limit).all()
+        rooms = db.query(Room).filter(Room.creator_id == current_user.id).order_by(Room.created_at.desc()).offset(skip).limit(limit).all()
         return rooms
     except Exception as e:
         logger.error(f"Error fetching rooms: {str(e)}")
@@ -94,22 +89,12 @@ async def get_rooms(skip: int = 0, limit: int = 100, db: Session = Depends(get_d
 
 
 @router.get("/{room_id}", response_model=RoomResponse)
-async def get_room(room_id: int, db: Session = Depends(get_db)):
+def get_room(room_id: int, db: Session = Depends(get_db), current_user: User = Depends(get_current_user)):
     """
     Get a specific room by ID.
-    
-    Args:
-        room_id: Room ID
-        db: Database session
-        
-    Returns:
-        Room details
-        
-    Raises:
-        HTTPException: If room not found
     """
     try:
-        room = db.query(Room).filter(Room.id == room_id).first()
+        room = db.query(Room).filter(Room.id == room_id, Room.creator_id == current_user.id).first()
         if not room:
             raise HTTPException(
                 status_code=status.HTTP_404_NOT_FOUND,
@@ -127,34 +112,23 @@ async def get_room(room_id: int, db: Session = Depends(get_db)):
 
 
 @router.post("/{room_id}/join", response_model=RoomResponse)
-async def join_room(room_id: int, join_data: RoomJoin, db: Session = Depends(get_db)):
+async def join_room(room_id: int, join_data: RoomJoin, db: Session = Depends(get_db), current_user: User = Depends(get_current_user)):
     """
     Add a role to a room.
-    
-    Args:
-        room_id: Room ID
-        join_data: Role join data
-        db: Database session
-        
-    Returns:
-        Updated room
-        
-    Raises:
-        HTTPException: If room or role not found
     """
     try:
-        room = db.query(Room).filter(Room.id == room_id).first()
+        room = db.query(Room).filter(Room.id == room_id, Room.creator_id == current_user.id).first()
         if not room:
             raise HTTPException(
                 status_code=status.HTTP_404_NOT_FOUND,
                 detail=f"Room {room_id} not found"
             )
         
-        role = db.query(Role).filter(Role.id == join_data.role_id).first()
+        role = db.query(Role).filter(Role.id == join_data.role_id, Role.user_id == current_user.id).first()
         if not role:
             raise HTTPException(
                 status_code=status.HTTP_404_NOT_FOUND,
-                detail=f"Role {join_data.role_id} not found"
+                detail=f"Role {join_data.role_id} not found or access denied"
             )
         
         # Check if role already in room
@@ -184,23 +158,12 @@ async def join_room(room_id: int, join_data: RoomJoin, db: Session = Depends(get
 
 
 @router.post("/{room_id}/start", status_code=status.HTTP_202_ACCEPTED)
-async def start_room(room_id: int, background_tasks: BackgroundTasks, db: Session = Depends(get_db)):
+async def start_room(room_id: int, background_tasks: BackgroundTasks, db: Session = Depends(get_db), current_user: User = Depends(get_current_user)):
     """
     Start the autonomous conversation in a room.
-    
-    Args:
-        room_id: Room ID
-        background_tasks: FastAPI background tasks
-        db: Database session
-        
-    Returns:
-        Success message
-        
-    Raises:
-        HTTPException: If room not found or already running
     """
     try:
-        room = db.query(Room).filter(Room.id == room_id).first()
+        room = db.query(Room).filter(Room.id == room_id, Room.creator_id == current_user.id).first()
         if not room:
             raise HTTPException(
                 status_code=status.HTTP_404_NOT_FOUND,
@@ -240,22 +203,12 @@ async def start_room(room_id: int, background_tasks: BackgroundTasks, db: Sessio
 
 
 @router.post("/{room_id}/stop", status_code=status.HTTP_200_OK)
-async def stop_room(room_id: int, db: Session = Depends(get_db)):
+async def stop_room(room_id: int, db: Session = Depends(get_db), current_user: User = Depends(get_current_user)):
     """
     Stop the conversation in a room.
-    
-    Args:
-        room_id: Room ID
-        db: Database session
-        
-    Returns:
-        Success message
-        
-    Raises:
-        HTTPException: If room not found
     """
     try:
-        room = db.query(Room).filter(Room.id == room_id).first()
+        room = db.query(Room).filter(Room.id == room_id, Room.creator_id == current_user.id).first()
         if not room:
             raise HTTPException(
                 status_code=status.HTTP_404_NOT_FOUND,
@@ -285,20 +238,49 @@ async def stop_room(room_id: int, db: Session = Depends(get_db)):
         )
 
 
-@router.post("/{room_id}/restart", status_code=status.HTTP_200_OK)
-async def restart_room(room_id: int, db: Session = Depends(get_db)):
+@router.post("/{room_id}/finish", status_code=status.HTTP_200_OK)
+async def finish_room(room_id: int, db: Session = Depends(get_db), current_user: User = Depends(get_current_user)):
     """
-    Restart the conversation in a room (new session).
-    
-    Args:
-        room_id: Room ID
-        db: Database session
-        
-    Returns:
-        Success message
+    Terminate the conversation in a room (mark as finished).
     """
     try:
-        room = db.query(Room).filter(Room.id == room_id).first()
+        room = db.query(Room).filter(Room.id == room_id, Room.creator_id == current_user.id).first()
+        if not room:
+            raise HTTPException(
+                status_code=status.HTTP_404_NOT_FOUND,
+                detail=f"Room {room_id} not found"
+            )
+        
+        # Stop orchestrator if running
+        if room_id in active_orchestrators:
+            active_orchestrators[room_id].stop()
+            del active_orchestrators[room_id]
+        
+        # Update room status
+        room.status = "finished"
+        db.commit()
+        
+        logger.info(f"Terminated conversation for room {room_id}")
+        return {"message": "Conversation terminated", "room_id": room_id}
+        
+    except HTTPException:
+        raise
+    except Exception as e:
+        logger.error(f"Error terminating room {room_id}: {str(e)}")
+        db.rollback()
+        raise HTTPException(
+            status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
+            detail=f"Failed to terminate room: {str(e)}"
+        )
+
+
+@router.post("/{room_id}/restart", status_code=status.HTTP_200_OK)
+async def restart_room(room_id: int, db: Session = Depends(get_db), current_user: User = Depends(get_current_user)):
+    """
+    Restart the conversation in a room (new session).
+    """
+    try:
+        room = db.query(Room).filter(Room.id == room_id, Room.creator_id == current_user.id).first()
         if not room:
             raise HTTPException(
                 status_code=status.HTTP_404_NOT_FOUND,
@@ -331,16 +313,12 @@ async def restart_room(room_id: int, db: Session = Depends(get_db)):
 
 
 @router.delete("/{room_id}", status_code=status.HTTP_204_NO_CONTENT)
-async def delete_room(room_id: int, db: Session = Depends(get_db)):
+async def delete_room(room_id: int, db: Session = Depends(get_db), current_user: User = Depends(get_current_user)):
     """
     Delete a chat room.
-    
-    Args:
-        room_id: Room ID
-        db: Database session
     """
     try:
-        room = db.query(Room).filter(Room.id == room_id).first()
+        room = db.query(Room).filter(Room.id == room_id, Room.creator_id == current_user.id).first()
         if not room:
             raise HTTPException(
                 status_code=status.HTTP_404_NOT_FOUND,
@@ -374,28 +352,16 @@ async def get_messages(
     skip: int = 0, 
     limit: int = 100, 
     session_id: int = None,
-    db: Session = Depends(get_db)
+    db: Session = Depends(get_db),
+    current_user: User = Depends(get_current_user)
 ):
     """
     Get messages from a room.
-    
-    Args:
-        room_id: Room ID
-        skip: Number of records to skip
-        limit: Maximum number of records to return
-        session_id: Optional session ID filter
-        db: Database session
-        
-    Returns:
-        List of messages
-        
-    Raises:
-        HTTPException: If room not found
     """
     try:
         from app.models import Message
         
-        room = db.query(Room).filter(Room.id == room_id).first()
+        room = db.query(Room).filter(Room.id == room_id, Room.creator_id == current_user.id).first()
         if not room:
             raise HTTPException(
                 status_code=status.HTTP_404_NOT_FOUND,
