@@ -1,0 +1,32 @@
+version: '3.8'
+
+services:
+  backend:
+    # 镜像名称将在部署时通过环境变量替换
+    image: ghcr.io/${REPO_LOWER}-backend:latest
+    container_name: robot-chat-backend
+    restart: unless-stopped
+    environment:
+      - APP_PORT=8000
+      - DATABASE_URL=${DATABASE_URL}
+      - APP_PASSWORD=${APP_PASSWORD}
+      - APP_URL=${APP_URL}
+    ports:
+      - "9811:8000"
+    networks:
+      - robot-chat-net
+
+  frontend:
+    image: ghcr.io/${REPO_LOWER}-frontend:latest
+    container_name: robot-chat-frontend
+    restart: unless-stopped
+    ports:
+      - "9812:80"
+    depends_on:
+      - backend
+    networks:
+      - robot-chat-net
+
+networks:
+  robot-chat-net:
+    driver: bridge

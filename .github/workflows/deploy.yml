@@ -66,41 +66,63 @@ jobs:
         envs: GITHUB_TOKEN,DATABASE_URL,APP_PASSWORD,APP_URL,GITHUB_ACTOR,GITHUB_REPOSITORY
         script: |
           # 准备配置目录
-          mkdir -p ~/robot-chat/config
+          mkdir -p ~/robot-chat
+          cd ~/robot-chat
           
-          # 将仓库名转换为小写
-          REPO_LOWER=$(echo "$GITHUB_REPOSITORY" | tr '[:upper:]' '[:lower:]')
+          # 将仓库名转换为小写并导出为环境变量
+          export REPO_LOWER=$(echo "$GITHUB_REPOSITORY" | tr '[:upper:]' '[:lower:]')
+          
+          # 创建 .env 文件用于 docker-compose
+          cat > .env <<EOF
+          REPO_LOWER=$REPO_LOWER
+          DATABASE_URL=$DATABASE_URL
+          APP_PASSWORD=$APP_PASSWORD
+          APP_URL=$APP_URL
+          EOF
+
+          # 写入 docker-compose.prod.yml
+          cat > docker-compose.yml <<'EOF'
+          version: '3.8'
+
+          services:
+            backend:
+              image: ghcr.io/${REPO_LOWER}-backend:latest
+              container_name: robot-chat-backend
+              restart: unless-stopped
+              environment:
+                - APP_PORT=8000
+                - DATABASE_URL=${DATABASE_URL}
+                - APP_PASSWORD=${APP_PASSWORD}
+                - APP_URL=${APP_URL}
+              ports:
+                - "9811:8000"
+              networks:
+                - robot-chat-net
+
+            frontend:
+              image: ghcr.io/${REPO_LOWER}-frontend:latest
+              container_name: robot-chat-frontend
+              restart: unless-stopped
+              ports:
+                - "9812:80"
+              depends_on:
+                - backend
+              networks:
+                - robot-chat-net
+
+          networks:
+            robot-chat-net:
+              driver: bridge
+          EOF
           
           # 登录 Docker Registry
           echo "$GITHUB_TOKEN" | docker login ghcr.io -u "$GITHUB_ACTOR" --password-stdin
           
           # 拉取最新镜像
-          docker pull ghcr.io/$REPO_LOWER-backend:latest
-          docker pull ghcr.io/$REPO_LOWER-frontend:latest
+          docker compose pull
           
-          # 停止并删除旧容器
-          docker stop robot-chat-backend robot-chat-frontend || true
-          docker rm robot-chat-backend robot-chat-frontend || true
+          # 启动服务
+          docker compose up -d --remove-orphans
           
-          # 创建 Docker 网络
-          docker network create robot-chat-net || true
-
-          # 启动 Backend
-          docker run -d \
-            --name robot-chat-backend \
-            --restart unless-stopped \
-            --network robot-chat-net \
-            -p 9811:8000 \
-            -e APP_PORT=8000 \
-            -e DATABASE_URL="$DATABASE_URL" \
-            -e APP_PASSWORD="$APP_PASSWORD" \
-            -e APP_URL="$APP_URL" \
-            ghcr.io/$REPO_LOWER-backend:latest
-
-          # 启动 Frontend
-          docker run -d \
-            --name robot-chat-frontend \
-            --restart unless-stopped \
-            --network robot-chat-net \
-            -p 9812:80 \
-            ghcr.io/$REPO_LOWER-frontend:latest
+          # 清理无用的镜像
+          docker image prune -f
