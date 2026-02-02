@@ -286,7 +286,6 @@ const selectedImage = ref<string | null>(null)
 const selectedImagePreview = ref<string | null>(null)
 
 const selectedAgent = computed(() => agents.value.find(a => a.id === selectedAgentId.value))
-const selectedRole = computed(() => roles.value.find(r => r.id === selectedRoleId.value))
 
 // Markdown
 const renderMarkdown = (content: string) => {
