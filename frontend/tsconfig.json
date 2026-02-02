@@ -28,5 +28,5 @@
     /* "types": ["vue", "vue-router"]  <-- Removed this to prevent global loading of modules */
   },
   "include": ["src/**/*.ts", "src/**/*.d.ts", "src/**/*.tsx", "src/**/*.vue"],
-  "references": [{ "path": "./tsconfig.node.json" }]
+  "exclude": ["node_modules", "dist"]
 }
