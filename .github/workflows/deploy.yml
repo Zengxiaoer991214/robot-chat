@@ -82,33 +82,25 @@ jobs:
           docker stop robot-chat-backend robot-chat-frontend || true
           docker rm robot-chat-backend robot-chat-frontend || true
           
-          # 启动 Backend (使用 host 网络模式，监听 9811)
+          # 创建 Docker 网络
+          docker network create robot-chat-net || true
+
+          # 启动 Backend
           docker run -d \
             --name robot-chat-backend \
             --restart unless-stopped \
-            --network host \
-            -e APP_PORT=9811 \
+            --network robot-chat-net \
+            -p 9811:8000 \
+            -e APP_PORT=8000 \
             -e DATABASE_URL="$DATABASE_URL" \
             -e APP_PASSWORD="$APP_PASSWORD" \
             -e APP_URL="$APP_URL" \
             ghcr.io/$REPO_LOWER-backend:latest
 
-          # 启动 Frontend (使用 host 网络模式，监听 80，或者映射其他端口)
-          # 注意：如果是 host 模式，frontend 容器内的 Nginx 默认监听 80，会占用宿主机 80 端口
-          # 如果宿主机 80 已被占用，或者希望用其他端口，需要修改 Nginx 配置或使用 bridge 模式 + 端口映射
-          # 考虑到用户强调 "以前的...可用"，以前是单容器监听 9811。现在拆分了。
-          # 假设前端也需要暴露。如果之前的单容器包含了前端静态文件，那么 9811 其实是后端+静态文件服务。
-          # 现在拆分了，Backend 只提供 API。Frontend 提供页面。
-          # 为了保持一致性，可能需要调整策略：
-          # 1. 仍然用 host 模式，但 Frontend 监听另一个端口 (如 9812)。
-          # 2. 或者让用户自己处理前端部署 (因为现在是 Nginx)。
-          
-          # 这里我们先启动 Frontend，映射到 9812 (假设)，避免冲突
-          # 如果必须用 host 模式，则需要在构建时修改 Nginx 监听端口，或者在此处通过 sed 修改配置
-          
-          # 采用 Bridge 模式启动 Frontend，映射到宿主机 9812
+          # 启动 Frontend
           docker run -d \
             --name robot-chat-frontend \
             --restart unless-stopped \
+            --network robot-chat-net \
             -p 9812:80 \
             ghcr.io/$REPO_LOWER-frontend:latest
