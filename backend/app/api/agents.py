@@ -6,6 +6,7 @@ from typing import List
 from fastapi import APIRouter, Depends, HTTPException, status
 from sqlalchemy.orm import Session
 
+from sqlalchemy import or_
 from app.core.database import get_db
 from app.models import Agent, User
 from app.schemas import AgentCreate, AgentUpdate, AgentResponse
@@ -75,7 +76,13 @@ async def get_agents(skip: int = 0, limit: int = 100, db: Session = Depends(get_
         List of agents
     """
     try:
-        agents = db.query(Agent).filter(Agent.user_id == current_user.id).order_by(Agent.id.desc()).offset(skip).limit(limit).all()
+        # Return agents created by current user OR global agents
+        agents = db.query(Agent).filter(
+            or_(
+                Agent.user_id == current_user.id,
+                Agent.is_global == True
+            )
+        ).order_by(Agent.id.desc()).offset(skip).limit(limit).all()
         return agents
     except Exception as e:
         logger.error(f"Error fetching agents: {str(e)}")
@@ -137,11 +144,17 @@ async def update_agent(agent_id: int, agent_data: AgentUpdate, db: Session = Dep
         HTTPException: If agent not found or access denied
     """
     try:
-        agent = db.query(Agent).filter(Agent.id == agent_id, Agent.user_id == current_user.id).first()
+        agent = db.query(Agent).filter(Agent.id == agent_id).first()
         if not agent:
             raise HTTPException(
                 status_code=status.HTTP_404_NOT_FOUND,
                 detail=f"Agent {agent_id} not found"
+            )
+
+        if agent.user_id != current_user.id:
+            raise HTTPException(
+                status_code=status.HTTP_403_FORBIDDEN,
+                detail="Not authorized to update this agent"
             )
         
         # Update fields

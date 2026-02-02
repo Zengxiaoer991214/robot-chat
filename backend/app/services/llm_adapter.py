@@ -216,6 +216,31 @@ class ChatAnywhereAdapter(BaseLLMAdapter):
             raise Exception(f"Failed to generate response from ChatAnywhere: {str(e)}")
 
 
+    async def generate_stream(self, messages: List[Dict[str, str]], system_prompt: str):
+        """
+        Generate streaming response using ChatAnywhere API.
+        """
+        try:
+            full_messages = [{"role": "system", "content": system_prompt}] + messages
+            
+            logger.info(f"Calling ChatAnywhere API (stream) with model {self.model_name}")
+            stream = await self.client.chat.completions.create(
+                model=self.model_name,
+                messages=full_messages,
+                temperature=self.temperature,
+                max_tokens=1000,
+                stream=True
+            )
+            
+            async for chunk in stream:
+                if chunk.choices and chunk.choices[0].delta.content:
+                    yield chunk.choices[0].delta.content
+                    
+        except Exception as e:
+            logger.error(f"ChatAnywhere API stream error: {str(e)}")
+            yield f"[Error: {str(e)}]"
+
+
 class GoogleAdapter(BaseLLMAdapter):
     """Adapter for Google Gemini API."""
     

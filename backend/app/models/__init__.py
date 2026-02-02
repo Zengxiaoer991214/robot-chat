@@ -48,6 +48,7 @@ class Agent(Base):
     api_key_config = Column(Text, nullable=True)  # Encrypted or specific key
     temperature = Column(Float, default=0.7, nullable=False)
     user_id = Column(Integer, ForeignKey('users.id'), nullable=False)
+    is_global = Column(Boolean, default=False)
     
     # Relationships
     creator = relationship("User", back_populates="agents")

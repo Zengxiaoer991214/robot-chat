@@ -40,9 +40,17 @@
           </div>
           <div>
             <h3 class="text-lg font-bold text-gray-900 dark:text-white group-hover:text-indigo-600 dark:group-hover:text-indigo-400 transition-colors">{{ agent.name }}</h3>
-            <span class="inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium bg-indigo-100 dark:bg-indigo-900/30 text-indigo-800 dark:text-indigo-300">
-              {{ agent.provider }}
-            </span>
+            <div class="flex gap-2">
+              <span class="inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium bg-indigo-100 dark:bg-indigo-900/30 text-indigo-800 dark:text-indigo-300">
+                {{ agent.provider }}
+              </span>
+              <span v-if="agent.is_global" class="inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium bg-green-100 dark:bg-green-900/30 text-green-800 dark:text-green-300">
+                <svg class="w-3 h-3 mr-1" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                  <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M3.055 11H5a2 2 0 012 2v1a2 2 0 002 2 2 2 0 012 2v2.945M8 3.935V5.5A2.5 2.5 0 0010.5 8h.5a2 2 0 012 2 2 2 0 104 0 2 2 0 012-2h1.064M15 20.488V18a2 2 0 012-2h3.064M21 12a9 9 0 11-18 0 9 9 0 0118 0z" />
+                </svg>
+                Global
+              </span>
+            </div>
           </div>
         </div>
         
@@ -125,12 +133,20 @@
 
               <div>
                 <label class="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">System Prompt</label>
-                <textarea v-model="form.system_prompt" rows="3" required class="block w-full border-gray-300 dark:border-gray-600 rounded-xl shadow-sm focus:ring-indigo-500 focus:border-indigo-500 sm:text-sm border p-2.5 bg-gray-50/50 dark:bg-gray-700/50 dark:text-white transition-all focus:bg-white dark:focus:bg-gray-700" placeholder="Describe the agent's personality..."></textarea>
+                <textarea v-model="form.system_prompt" rows="3" class="block w-full border-gray-300 dark:border-gray-600 rounded-xl shadow-sm focus:ring-indigo-500 focus:border-indigo-500 sm:text-sm border p-2.5 bg-gray-50/50 dark:bg-gray-700/50 dark:text-white transition-all focus:bg-white dark:focus:bg-gray-700" placeholder="Describe the agent's personality..."></textarea>
               </div>
               
               <div>
                 <label class="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">Temperature ({{ form.temperature }})</label>
                 <input v-model.number="form.temperature" type="range" min="0" max="2" step="0.1" class="w-full h-2 bg-gray-200 dark:bg-gray-600 rounded-lg appearance-none cursor-pointer accent-indigo-600">
+              </div>
+
+              <div class="flex items-center">
+                <input v-model="form.is_global" id="is_global" type="checkbox" class="h-4 w-4 text-indigo-600 focus:ring-indigo-500 border-gray-300 rounded">
+                <label for="is_global" class="ml-2 block text-sm text-gray-900 dark:text-gray-300">
+                  Set as Global Agent
+                  <p class="text-xs text-gray-500">Visible to all users (Read-only for others)</p>
+                </label>
               </div>
             </div>
             
@@ -150,8 +166,8 @@
 </template>
 
 <script setup lang="ts">
-import { ref, onMounted, reactive, watch } from 'vue'
-import { agentApi } from '@/services/api'
+import { ref, onMounted, reactive, watch, computed } from 'vue'
+import { agentApi, authApi } from '@/services/api'
 import type { Agent, CreateAgentRequest } from '@/types'
 
 const agents = ref<Agent[]>([])
@@ -159,6 +175,7 @@ const loading = ref(true)
 const showCreateModal = ref(false)
 const isEditing = ref(false)
 const editingId = ref<number | null>(null)
+const currentUserId = ref<number | null>(null)
 
 const defaultSystemPrompt = ""
 
@@ -168,7 +185,8 @@ const form = reactive<CreateAgentRequest>({
   model_name: 'gpt-3.5-turbo',
   system_prompt: defaultSystemPrompt,
   temperature: 0.7,
-  api_key_config: ''
+  api_key_config: '',
+  is_global: false
 })
 
 // Update default model name when provider changes
@@ -200,6 +218,7 @@ watch(() => form.provider, (newProvider: string) => {
 const loadAgents = async () => {
   try {
     loading.value = true
+    currentUserId.value = authApi.getCurrentUserId()
     agents.value = await agentApi.getAll()
   } catch (error) {
     console.error('Failed to load agents:', error)
@@ -217,6 +236,7 @@ const openCreateModal = () => {
   form.system_prompt = defaultSystemPrompt
   form.temperature = 0.7
   form.api_key_config = ''
+  form.is_global = false
   showCreateModal.value = true
 }
 
@@ -229,6 +249,7 @@ const editAgent = (agent: Agent) => {
   form.system_prompt = agent.system_prompt
   form.temperature = agent.temperature
   form.api_key_config = '' // Don't show existing key
+  form.is_global = agent.is_global || false
   showCreateModal.value = true
 }
 

@@ -11,6 +11,8 @@ export interface Agent {
   system_prompt: string
   api_key_config?: string
   temperature: number
+  user_id?: number
+  is_global?: boolean
 }
 
 export interface Role {
@@ -49,6 +51,7 @@ export interface Message {
   sender_name?: string
   created_at: string
   sender_role?: Role
+  status?: 'sending' | 'sent' | 'error'
 }
 
 export interface CreateAgentRequest {
@@ -59,6 +62,7 @@ export interface CreateAgentRequest {
   system_prompt: string
   api_key_config?: string
   temperature?: number
+  is_global?: boolean
 }
 
 export interface CreateRoleRequest {

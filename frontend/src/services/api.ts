@@ -69,7 +69,14 @@ export const authApi = {
   logout: () => {
     localStorage.removeItem('token')
     localStorage.removeItem('isAuthenticated')
+    localStorage.removeItem('userId')
+    localStorage.removeItem('username')
     window.location.href = '/login'
+  },
+  
+  getCurrentUserId: (): number | null => {
+    const id = localStorage.getItem('userId')
+    return id ? parseInt(id) : null
   }
 }
 
@@ -174,6 +181,11 @@ export const roomApi = {
       params.session_id = sessionId
     }
     const response = await api.get<Message[]>(`/rooms/${roomId}/messages`, { params })
+    return response.data
+  },
+
+  sendMessage: async (roomId: number, content: string): Promise<Message> => {
+    const response = await api.post<Message>(`/rooms/${roomId}/messages`, { content })
     return response.data
   },
 }

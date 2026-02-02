@@ -31,14 +31,25 @@ jobs:
       run: |
         echo "REPO_LOWER=${GITHUB_REPOSITORY,,}" >>${GITHUB_ENV}
 
-    - name: Build and push
+    - name: Build and push Backend
       uses: docker/build-push-action@v4
       with:
-        context: .
+        context: ./backend
+        file: ./backend/Dockerfile
         push: true
         tags: |
-          ghcr.io/${{ env.REPO_LOWER }}:latest
-          ghcr.io/${{ env.REPO_LOWER }}:${{ github.sha }}
+          ghcr.io/${{ env.REPO_LOWER }}-backend:latest
+          ghcr.io/${{ env.REPO_LOWER }}-backend:${{ github.sha }}
+
+    - name: Build and push Frontend
+      uses: docker/build-push-action@v4
+      with:
+        context: ./frontend
+        file: ./frontend/Dockerfile
+        push: true
+        tags: |
+          ghcr.io/${{ env.REPO_LOWER }}-frontend:latest
+          ghcr.io/${{ env.REPO_LOWER }}-frontend:${{ github.sha }}
 
   deploy:
     needs: build-and-push
@@ -66,31 +77,75 @@ jobs:
         envs: GITHUB_TOKEN,DATABASE_URL,APP_PASSWORD,APP_URL,GITHUB_ACTOR,GITHUB_REPOSITORY
         script: |
           # 准备配置目录
-          mkdir -p ~/robot-chat/config
+          mkdir -p ~/robot-chat
+          cd ~/robot-chat
           
-          # 将仓库名转换为小写
-          REPO_LOWER=$(echo "$GITHUB_REPOSITORY" | tr '[:upper:]' '[:lower:]')
+          # 将仓库名转换为小写并导出为环境变量
+          export REPO_LOWER=$(echo "$GITHUB_REPOSITORY" | tr '[:upper:]' '[:lower:]')
+          
+          # 创建 .env 文件用于 docker-compose
+          cat > .env <<EOF
+          REPO_LOWER=$REPO_LOWER
+          DATABASE_URL=$DATABASE_URL
+          APP_PASSWORD=$APP_PASSWORD
+          APP_URL=$APP_URL
+          EOF
+
+          # 写入 docker-compose.prod.yml
+          cat > docker-compose.yml <<'EOF'
+          services:
+            backend:
+              image: ghcr.io/${REPO_LOWER}-backend:latest
+              container_name: robot-chat-backend
+              restart: unless-stopped
+              # 添加 host.docker.internal 映射，允许容器访问宿主机网络
+              extra_hosts:
+                - "host.docker.internal:host-gateway"
+              environment:
+                - APP_PORT=8000
+                - DATABASE_URL=${DATABASE_URL}
+                - APP_PASSWORD=${APP_PASSWORD}
+                - APP_URL=${APP_URL}
+                # 代理配置：指向宿主机的 7890 端口
+                - HTTP_PROXY=http://host.docker.internal:7890
+                - HTTPS_PROXY=http://host.docker.internal:7890
+                - http_proxy=http://host.docker.internal:7890
+                - https_proxy=http://host.docker.internal:7890
+                - NO_PROXY=localhost,127.0.0.1,::1,robot-chat-backend,robot-chat-frontend,backend,frontend
+              ports:
+                - "9811:8000"
+              networks:
+                - robot-chat-net
+
+            frontend:
+              image: ghcr.io/${REPO_LOWER}-frontend:latest
+              container_name: robot-chat-frontend
+              restart: unless-stopped
+              ports:
+                - "9812:80"
+              depends_on:
+                - backend
+              networks:
+                - robot-chat-net
+
+          networks:
+            robot-chat-net:
+              driver: bridge
+          EOF
+          
+          # 停止并删除旧的单体容器（如果存在），防止端口冲突
+          echo "Stopping legacy container..."
+          docker stop robot-chat || true
+          docker rm robot-chat || true
           
           # 登录 Docker Registry
           echo "$GITHUB_TOKEN" | docker login ghcr.io -u "$GITHUB_ACTOR" --password-stdin
           
           # 拉取最新镜像
-          docker pull ghcr.io/$REPO_LOWER:latest
+          docker compose pull
           
-          # 停止并删除旧容器
-          docker stop robot-chat || true
-          docker rm robot-chat || true
+          # 启动服务
+          docker compose up -d --remove-orphans
           
-          # 启动新容器
-          # 使用 host 网络模式，以便容器可以访问宿主机的代理 (127.0.0.1:7890)
-          # 设置 APP_PORT 环境变量为 9811
-          
-          docker run -d \
-            --name robot-chat \
-            --restart unless-stopped \
-            --network host \
-            -e APP_PORT=9811 \
-            -e DATABASE_URL="$DATABASE_URL" \
-            -e APP_PASSWORD="$APP_PASSWORD" \
-            -e APP_URL="$APP_URL" \
-            ghcr.io/$REPO_LOWER:latest
+          # 清理无用的镜像
+          docker image prune -f

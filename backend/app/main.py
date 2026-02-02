@@ -79,6 +79,16 @@ async def validation_exception_handler(request: Request, exc: RequestValidationE
         content={"detail": "; ".join(error_messages)},
     )
 
+
+@app.exception_handler(Exception)
+async def global_exception_handler(request: Request, exc: Exception):
+    """Global exception handler for unhandled errors."""
+    logger.error(f"Global exception: {str(exc)}", exc_info=True)
+    return JSONResponse(
+        status_code=500,
+        content={"detail": "Internal server error. Please check server logs for details."},
+    )
+
 # Configure CORS
 app.add_middleware(
     CORSMiddleware,
