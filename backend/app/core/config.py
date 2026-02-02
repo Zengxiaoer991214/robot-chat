@@ -26,6 +26,10 @@ class Settings(BaseSettings):
         default=None,
         description="Default DeepSeek API key"
     )
+    dashscope_api_key: Optional[str] = Field(
+        default=None,
+        description="Default Aliyun DashScope API key"
+    )
     
     # Server
     host: str = Field(default="0.0.0.0", description="Server host")

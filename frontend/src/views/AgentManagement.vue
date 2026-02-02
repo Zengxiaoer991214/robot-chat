@@ -182,6 +182,9 @@ watch(() => form.provider, (newProvider: string) => {
     case 'chatanywhere':
       form.model_name = 'gpt-3.5-turbo'
       break
+    case 'dashscope':
+      form.model_name = 'qwen-plus'
+      break
   }
 })
 

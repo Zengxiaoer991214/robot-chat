@@ -336,5 +336,7 @@ def get_llm_adapter(provider: str, model_name: str, temperature: float = 0.7, ap
         return GoogleAdapter(model_name, temperature, api_key)
     elif provider == "chatanywhere":
         return ChatAnywhereAdapter(model_name, temperature, api_key)
+    elif provider == "dashscope" or provider == "aliyun":
+        return DashScopeAdapter(model_name, temperature, api_key)
     else:
         raise ValueError(f"Unsupported provider: {provider}")
