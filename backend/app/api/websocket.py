@@ -91,6 +91,16 @@ async def websocket_endpoint(websocket: WebSocket, room_id: int):
             # Keep connection alive and listen for client messages
             while True:
                 data = await websocket.receive_text()
+                
+                try:
+                    message_data = json.loads(data)
+                    # Handle heartbeat
+                    if message_data.get("type") == "ping":
+                        await websocket.send_text(json.dumps({"type": "pong"}))
+                        continue
+                except json.JSONDecodeError:
+                    pass
+                
                 # Echo back for now (can add client message handling later)
                 logger.info(f"Received from client in room {room_id}: {data}")
                 

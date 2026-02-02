@@ -49,6 +49,7 @@ export interface Message {
   sender_name?: string
   created_at: string
   sender_role?: Role
+  status?: 'sending' | 'sent' | 'error'
 }
 
 export interface CreateAgentRequest {

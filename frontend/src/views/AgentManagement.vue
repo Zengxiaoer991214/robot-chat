@@ -125,7 +125,7 @@
 
               <div>
                 <label class="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">System Prompt</label>
-                <textarea v-model="form.system_prompt" rows="3" required class="block w-full border-gray-300 dark:border-gray-600 rounded-xl shadow-sm focus:ring-indigo-500 focus:border-indigo-500 sm:text-sm border p-2.5 bg-gray-50/50 dark:bg-gray-700/50 dark:text-white transition-all focus:bg-white dark:focus:bg-gray-700" placeholder="Describe the agent's personality..."></textarea>
+                <textarea v-model="form.system_prompt" rows="3" class="block w-full border-gray-300 dark:border-gray-600 rounded-xl shadow-sm focus:ring-indigo-500 focus:border-indigo-500 sm:text-sm border p-2.5 bg-gray-50/50 dark:bg-gray-700/50 dark:text-white transition-all focus:bg-white dark:focus:bg-gray-700" placeholder="Describe the agent's personality..."></textarea>
               </div>
               
               <div>

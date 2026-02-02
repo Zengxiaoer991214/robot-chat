@@ -26,18 +26,18 @@
             </div>
             <div class="hidden sm:ml-8 sm:flex sm:space-x-8">
               <router-link
-                to="/"
+                to="/chat"
                 class="border-transparent text-gray-500 hover:text-gray-900 dark:text-gray-400 dark:hover:text-gray-200 inline-flex items-center px-1 pt-1 border-b-2 text-sm font-medium transition-colors duration-200"
                 active-class="border-indigo-500 text-indigo-600 dark:text-indigo-400 dark:border-indigo-400"
               >
-                Dashboard
+                Chat
               </router-link>
               <router-link
-                to="/agents"
+                to="/"
                 class="border-transparent text-gray-500 hover:text-gray-900 dark:text-gray-400 dark:hover:text-gray-200 inline-flex items-center px-1 pt-1 border-b-2 text-sm font-medium transition-colors duration-200"
-                active-class="border-indigo-500 text-indigo-600 dark:text-indigo-400 dark:border-indigo-400"
+                exact-active-class="border-indigo-500 text-indigo-600 dark:text-indigo-400 dark:border-indigo-400"
               >
-                Agents
+                Chat Rooms
               </router-link>
               <router-link
                 to="/roles"
@@ -47,11 +47,11 @@
                 Roles
               </router-link>
               <router-link
-                to="/chat"
+                to="/agents"
                 class="border-transparent text-gray-500 hover:text-gray-900 dark:text-gray-400 dark:hover:text-gray-200 inline-flex items-center px-1 pt-1 border-b-2 text-sm font-medium transition-colors duration-200"
                 active-class="border-indigo-500 text-indigo-600 dark:text-indigo-400 dark:border-indigo-400"
               >
-                Chat
+                Agents
               </router-link>
             </div>
           </div>
@@ -105,6 +105,15 @@
         <div v-if="mobileMenuOpen" class="sm:hidden bg-white/95 dark:bg-gray-900/95 backdrop-blur-xl border-b border-gray-200 dark:border-gray-700 shadow-lg absolute w-full z-50">
           <div class="pt-2 pb-4 space-y-1 px-2">
             <router-link
+              to="/chat"
+              class="block pl-3 pr-4 py-3 border-l-4 text-base font-medium transition-colors"
+              active-class="bg-indigo-50 border-indigo-500 text-indigo-700 dark:bg-indigo-900/20 dark:border-indigo-400 dark:text-indigo-400"
+              :class="[$route.path.startsWith('/chat') ? '' : 'border-transparent text-gray-500 hover:bg-gray-50 hover:border-gray-300 hover:text-gray-700 dark:text-gray-400 dark:hover:bg-gray-800 dark:hover:text-gray-200']"
+              @click="mobileMenuOpen = false"
+            >
+              Chat
+            </router-link>
+            <router-link
               to="/"
               class="block pl-3 pr-4 py-3 border-l-4 text-base font-medium transition-colors"
               active-class="bg-indigo-50 border-indigo-500 text-indigo-700 dark:bg-indigo-900/20 dark:border-indigo-400 dark:text-indigo-400"
@@ -112,16 +121,7 @@
               :class="[$route.path === '/' ? '' : 'border-transparent text-gray-500 hover:bg-gray-50 hover:border-gray-300 hover:text-gray-700 dark:text-gray-400 dark:hover:bg-gray-800 dark:hover:text-gray-200']"
               @click="mobileMenuOpen = false"
             >
-              Dashboard
-            </router-link>
-            <router-link
-              to="/agents"
-              class="block pl-3 pr-4 py-3 border-l-4 text-base font-medium transition-colors"
-              active-class="bg-indigo-50 border-indigo-500 text-indigo-700 dark:bg-indigo-900/20 dark:border-indigo-400 dark:text-indigo-400"
-              :class="[$route.path.startsWith('/agents') ? '' : 'border-transparent text-gray-500 hover:bg-gray-50 hover:border-gray-300 hover:text-gray-700 dark:text-gray-400 dark:hover:bg-gray-800 dark:hover:text-gray-200']"
-              @click="mobileMenuOpen = false"
-            >
-              Agents
+              Chat Rooms
             </router-link>
             <router-link
               to="/roles"
@@ -133,13 +133,13 @@
               Roles
             </router-link>
             <router-link
-              to="/chat"
+              to="/agents"
               class="block pl-3 pr-4 py-3 border-l-4 text-base font-medium transition-colors"
               active-class="bg-indigo-50 border-indigo-500 text-indigo-700 dark:bg-indigo-900/20 dark:border-indigo-400 dark:text-indigo-400"
-              :class="[$route.path.startsWith('/chat') ? '' : 'border-transparent text-gray-500 hover:bg-gray-50 hover:border-gray-300 hover:text-gray-700 dark:text-gray-400 dark:hover:bg-gray-800 dark:hover:text-gray-200']"
+              :class="[$route.path.startsWith('/agents') ? '' : 'border-transparent text-gray-500 hover:bg-gray-50 hover:border-gray-300 hover:text-gray-700 dark:text-gray-400 dark:hover:bg-gray-800 dark:hover:text-gray-200']"
               @click="mobileMenuOpen = false"
             >
-              Chat
+              Agents
             </router-link>
           </div>
         </div>

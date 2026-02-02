@@ -176,6 +176,11 @@ export const roomApi = {
     const response = await api.get<Message[]>(`/rooms/${roomId}/messages`, { params })
     return response.data
   },
+
+  sendMessage: async (roomId: number, content: string): Promise<Message> => {
+    const response = await api.post<Message>(`/rooms/${roomId}/messages`, { content })
+    return response.data
+  },
 }
 
 // Chat Session API

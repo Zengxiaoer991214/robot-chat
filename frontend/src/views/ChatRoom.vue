@@ -200,9 +200,23 @@
 
               <!-- Message Content -->
               <div class="flex flex-col" :class="msg.role === 'user' ? 'items-end' : 'items-start'">
-                <div class="flex items-baseline space-x-2 mb-1" :class="msg.role === 'user' ? 'flex-row-reverse space-x-reverse' : ''">
+                <div class="flex items-center space-x-2 mb-1" :class="msg.role === 'user' ? 'flex-row-reverse space-x-reverse' : ''">
                   <span class="text-xs font-semibold text-gray-900 dark:text-gray-200">{{ msg.role === 'user' ? 'You' : getRoleName(msg.role_id) }}</span>
-                  <span class="text-[10px] text-gray-400">{{ formatDate(msg.created_at) }}</span>
+                  <div class="flex items-center gap-1">
+                    <span class="text-[10px] text-gray-400">{{ formatDate(msg.created_at) }}</span>
+                    <template v-if="msg.role === 'user'">
+                      <span v-if="msg.status === 'sending'" class="text-gray-400">
+                        <svg class="animate-spin w-3 h-3" fill="none" viewBox="0 0 24 24"><circle class="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" stroke-width="4"></circle><path class="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z"></path></svg>
+                      </span>
+                      <span v-else-if="msg.status === 'error'" class="text-red-500" title="Failed to send">
+                        <svg class="w-3 h-3" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 8v4m0 4h.01M21 12a9 9 0 11-18 0 9 9 0 0118 0z"></path></svg>
+                      </span>
+                      <!-- Only show checkmark if sent successfully -->
+                      <span v-else-if="msg.status === 'sent'" class="text-blue-500">
+                         <svg class="w-3 h-3" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M5 13l4 4L19 7"></path></svg>
+                      </span>
+                    </template>
+                  </div>
                 </div>
                 
                 <div 
@@ -227,8 +241,41 @@
         </transition-group>
       </div>
       
+      <!-- Input Area -->
+      <div class="p-3 md:p-4 bg-white/80 dark:bg-gray-800/80 backdrop-blur-md border-t border-gray-100 dark:border-gray-700 z-20">
+        <div class="flex items-end gap-2 md:gap-3 max-w-4xl mx-auto w-full">
+          <div class="relative flex-1">
+            <textarea
+              v-model="inputText"
+              @keydown.enter.prevent="sendMessage"
+              placeholder="Type a message..."
+              rows="1"
+              enterkeyhint="send"
+              class="w-full pl-4 pr-12 py-3 bg-gray-50 dark:bg-gray-700/50 border border-gray-200 dark:border-gray-600 rounded-xl focus:ring-2 focus:ring-indigo-500 focus:border-transparent resize-none custom-scrollbar text-sm text-gray-900 dark:text-white placeholder-gray-400 dark:placeholder-gray-500 transition-all"
+              style="min-height: 46px; max-height: 120px;"
+            ></textarea>
+            <div class="absolute right-3 bottom-3 text-xs text-gray-400 pointer-events-none hidden md:block">
+              ⏎
+            </div>
+          </div>
+          <button
+            @click="sendMessage"
+            :disabled="!inputText.trim() || sendingMessage"
+            class="p-3 bg-indigo-600 hover:bg-indigo-700 disabled:opacity-50 disabled:cursor-not-allowed text-white rounded-xl shadow-sm transition-all active:scale-95 flex-shrink-0"
+          >
+            <svg v-if="sendingMessage" class="animate-spin w-5 h-5" fill="none" viewBox="0 0 24 24">
+              <circle class="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" stroke-width="4"></circle>
+              <path class="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z"></path>
+            </svg>
+            <svg v-else class="w-5 h-5 transform rotate-90" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+              <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 19l9 2-9-18-9 18 9-2zm0 0v-8" />
+            </svg>
+          </button>
+        </div>
+      </div>
+      
       <!-- Connection Status Footer -->
-      <div class="absolute bottom-4 right-6 z-10 transition-opacity duration-500" :class="connected ? 'opacity-0 hover:opacity-100' : 'opacity-100'">
+      <div class="absolute top-4 right-6 z-10 transition-opacity duration-500" :class="connected ? 'opacity-0 hover:opacity-100' : 'opacity-100'">
         <div class="flex items-center space-x-1.5 bg-white/90 backdrop-blur px-2 py-1 rounded-full shadow-sm border border-gray-100">
           <span class="relative flex h-2 w-2">
             <span :class="connected ? 'bg-green-500' : 'bg-red-500'" class="animate-ping absolute inline-flex h-full w-full rounded-full opacity-75"></span>
@@ -264,7 +311,13 @@ const deleting = ref(false)
 const connected = ref(false)
 const mobileSidebarOpen = ref(false)
 const chatContainer = ref<HTMLElement | null>(null)
+const inputText = ref('')
+const sendingMessage = ref(false)
 let socket: WebSocket | null = null
+let heartbeatInterval: any = null
+let reconnectTimeout: any = null
+const RECONNECT_DELAY = 3000
+const HEARTBEAT_INTERVAL = 30000
 
 // Active role highlight (simulated for now)
 const activeRoleId = computed(() => {
@@ -313,6 +366,47 @@ const scrollToBottom = async () => {
   }
 }
 
+// Send Message
+const sendMessage = async () => {
+  if (!inputText.value.trim() || sendingMessage.value || !room.value) return
+  
+  const content = inputText.value.trim()
+  inputText.value = ''
+  sendingMessage.value = true
+  
+  // Create optimistic message
+  const tempId = Date.now()
+  const optimisticMsg: Message = {
+    id: tempId,
+    room_id: roomId,
+    content: content,
+    role: 'user',
+    created_at: new Date().toISOString(),
+    status: 'sending'
+  }
+  
+  messages.value.push(optimisticMsg)
+  scrollToBottom()
+  
+  try {
+    const realMsg = await roomApi.sendMessage(roomId, content)
+    
+    // Update optimistic message with real data
+    const index = messages.value.findIndex(m => m.id === tempId)
+    if (index !== -1) {
+      messages.value[index] = { ...realMsg, status: 'sent' }
+    }
+  } catch (error) {
+    console.error('Failed to send message:', error)
+    const index = messages.value.findIndex(m => m.id === tempId)
+    if (index !== -1) {
+      messages.value[index].status = 'error'
+    }
+  } finally {
+    sendingMessage.value = false
+  }
+}
+
 // Load initial data
 const loadData = async () => {
   try {
@@ -333,16 +427,33 @@ const loadData = async () => {
 
 // WebSocket connection
 const connectWebSocket = () => {
+  if (socket) {
+    socket.close()
+  }
+
   socket = createWebSocket(roomId)
   
   socket.onopen = () => {
     connected.value = true
     console.log('WebSocket connected')
+    
+    // Start heartbeat
+    if (heartbeatInterval) clearInterval(heartbeatInterval)
+    heartbeatInterval = setInterval(() => {
+      if (socket && socket.readyState === WebSocket.OPEN) {
+        socket.send(JSON.stringify({ type: 'ping' }))
+      }
+    }, HEARTBEAT_INTERVAL)
   }
   
   socket.onmessage = (event) => {
     try {
       const data: WSMessage = JSON.parse(event.data)
+      
+      if (data.type === 'pong') {
+        // Heartbeat response, ignore for now
+        return
+      }
       
       if (data.type === 'message') {
         const msgData = data.data
@@ -356,6 +467,12 @@ const connectWebSocket = () => {
           created_at: msgData.created_at || new Date().toISOString()
         }
 
+        // Avoid duplicates (especially for user messages we just sent optimistically)
+        // If we find a message with the same ID, update it? 
+        // Or if we find a 'sending' message with same content? No, relying on ID from backend response is safer.
+        // But backend broadcast comes separately.
+        // If we updated the optimistic message, it now has the real ID.
+        // So checking ID is sufficient.
         if (!messages.value.find((m: Message) => m.id === msg.id)) {
           messages.value.push(msg)
           scrollToBottom()
@@ -372,6 +489,16 @@ const connectWebSocket = () => {
   socket.onclose = () => {
     connected.value = false
     console.log('WebSocket disconnected')
+    
+    // Clear heartbeat
+    if (heartbeatInterval) clearInterval(heartbeatInterval)
+    
+    // Attempt reconnect
+    if (reconnectTimeout) clearTimeout(reconnectTimeout)
+    reconnectTimeout = setTimeout(() => {
+      console.log('Attempting to reconnect...')
+      connectWebSocket()
+    }, RECONNECT_DELAY)
   }
   
   socket.onerror = (error) => {

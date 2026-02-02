@@ -9,16 +9,78 @@ from sqlalchemy.orm import Session
 
 from app.core.database import get_db
 from app.models import Room, Agent, Role, User
-from app.schemas import RoomCreate, RoomResponse, RoomJoin, MessageResponse
+from app.schemas import RoomCreate, RoomResponse, RoomJoin, MessageResponse, UserMessageRequest
 from app.services.orchestrator import ChatOrchestrator
 from app.api.websocket import manager
 from app.api.deps import get_current_user
+from app.models import Room, Agent, Role, User, Message
 
 logger = logging.getLogger(__name__)
 router = APIRouter(prefix="/api/rooms", tags=["rooms"])
 
 # Store active orchestrators
 active_orchestrators = {}
+
+
+@router.post("/{room_id}/messages", response_model=MessageResponse, status_code=status.HTTP_201_CREATED)
+async def send_message(
+    room_id: int, 
+    message_data: UserMessageRequest, 
+    db: Session = Depends(get_db), 
+    current_user: User = Depends(get_current_user)
+):
+    """
+    Send a user message to the room.
+    """
+    try:
+        # Validate room
+        room = db.query(Room).filter(Room.id == room_id, Room.creator_id == current_user.id).first()
+        if not room:
+            raise HTTPException(
+                status_code=status.HTTP_404_NOT_FOUND,
+                detail=f"Room {room_id} not found"
+            )
+            
+        # Create message
+        message = Message(
+            room_id=room_id,
+            content=message_data.content,
+            role="user",
+            session_id=room.session_id,
+            sender_name=current_user.username
+        )
+        
+        db.add(message)
+        db.commit()
+        db.refresh(message)
+        
+        # Broadcast to WebSocket
+        # Construct message dict for broadcast
+        msg_dict = {
+            "type": "message",
+            "data": {
+                "id": message.id,
+                "room_id": message.room_id,
+                "content": message.content,
+                "role": "user",
+                "sender_name": message.sender_name,
+                "created_at": message.created_at.isoformat()
+            }
+        }
+        
+        await manager.broadcast(room_id, msg_dict)
+        
+        return message
+        
+    except HTTPException:
+        raise
+    except Exception as e:
+        logger.error(f"Error sending message to room {room_id}: {str(e)}")
+        db.rollback()
+        raise HTTPException(
+            status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
+            detail=f"Failed to send message: {str(e)}"
+        )
 
 
 @router.post("", response_model=RoomResponse, status_code=status.HTTP_201_CREATED)

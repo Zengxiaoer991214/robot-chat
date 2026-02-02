@@ -45,7 +45,7 @@ class AgentBase(BaseModel):
     avatar_url: Optional[str] = None
     provider: str = Field(..., min_length=1, max_length=50)
     model_name: str = Field(..., min_length=1, max_length=100)
-    system_prompt: str = Field(default="You are a participant in a group chat. Your responses should be concise, casual, and conversational, mimicking how humans type in a group chat. Keep messages short. Only provide longer explanations if necessary.", min_length=1)
+    system_prompt: str = Field(default="", description="System prompt for the agent")
     api_key_config: Optional[str] = None
     temperature: float = Field(default=0.7, ge=0.0, le=2.0)
 
@@ -146,6 +146,11 @@ class MessageBase(BaseModel):
     """Base message schema."""
     content: str
     role: str  # user, assistant, system
+
+
+class UserMessageRequest(BaseModel):
+    """Schema for user sending a message."""
+    content: str = Field(..., min_length=1)
 
 
 class MessageCreate(MessageBase):
