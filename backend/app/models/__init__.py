@@ -47,6 +47,7 @@ class Agent(Base):
     system_prompt = Column(Text, nullable=False)
     api_key_config = Column(Text, nullable=True)  # Encrypted or specific key
     temperature = Column(Float, default=0.7, nullable=False)
+    use_proxy = Column(Boolean, default=False, nullable=False)
     user_id = Column(Integer, ForeignKey('users.id'), nullable=False)
     is_global = Column(Boolean, default=False)
     

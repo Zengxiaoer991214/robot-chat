@@ -65,6 +65,7 @@ class AgentUpdate(BaseModel):
     system_prompt: Optional[str] = Field(None)
     api_key_config: Optional[str] = None
     temperature: Optional[float] = Field(None, ge=0.0, le=2.0)
+    use_proxy: Optional[bool] = None
     is_global: Optional[bool] = None
 
 

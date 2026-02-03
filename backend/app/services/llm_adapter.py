@@ -15,7 +15,7 @@ logger = logging.getLogger(__name__)
 class BaseLLMAdapter(ABC):
     """Base class for LLM adapters."""
     
-    def __init__(self, model_name: str, temperature: float = 0.7, api_key: Optional[str] = None):
+    def __init__(self, model_name: str, temperature: float = 0.7, api_key: Optional[str] = None, use_proxy: bool = False):
         """
         Initialize the adapter.
         
@@ -23,10 +23,12 @@ class BaseLLMAdapter(ABC):
             model_name: Name of the model to use
             temperature: Temperature parameter for generation
             api_key: API key for the provider (if None, uses default from settings)
+            use_proxy: Whether to use proxy for this adapter
         """
         self.model_name = model_name
         self.temperature = temperature
         self.api_key = api_key
+        self.use_proxy = use_proxy
     
     @abstractmethod
     async def generate(self, messages: List[Dict[str, str]], system_prompt: str) -> str:
@@ -64,8 +66,8 @@ class BaseLLMAdapter(ABC):
 class OpenAIAdapter(BaseLLMAdapter):
     """Adapter for OpenAI API (GPT models)."""
     
-    def __init__(self, model_name: str = "gpt-3.5-turbo", temperature: float = 0.7, api_key: Optional[str] = None):
-        super().__init__(model_name, temperature, api_key)
+    def __init__(self, model_name: str = "gpt-3.5-turbo", temperature: float = 0.7, api_key: Optional[str] = None, use_proxy: bool = False):
+        super().__init__(model_name, temperature, api_key, use_proxy)
         # Use provided API key or fall back to settings
         key = self.api_key or settings.openai_api_key
         if not key:
@@ -75,7 +77,13 @@ class OpenAIAdapter(BaseLLMAdapter):
                 key = "dummy-key-for-testing"
             else:
                 raise ValueError("OpenAI API key is required. Set OPENAI_API_KEY environment variable or provide api_key parameter.")
-        self.client = AsyncOpenAI(api_key=key)
+        
+        http_client = None
+        if self.use_proxy and settings.llm_proxy_url:
+            logger.info(f"Using proxy {settings.llm_proxy_url} for OpenAI")
+            http_client = httpx.AsyncClient(proxies=settings.llm_proxy_url)
+            
+        self.client = AsyncOpenAI(api_key=key, http_client=http_client)
     
     async def generate(self, messages: List[Dict[str, str]], system_prompt: str) -> str:
         """
@@ -118,8 +126,8 @@ class OpenAIAdapter(BaseLLMAdapter):
 class DeepSeekAdapter(BaseLLMAdapter):
     """Adapter for DeepSeek API (compatible with OpenAI format)."""
     
-    def __init__(self, model_name: str = "deepseek-chat", temperature: float = 0.7, api_key: Optional[str] = None):
-        super().__init__(model_name, temperature, api_key)
+    def __init__(self, model_name: str = "deepseek-chat", temperature: float = 0.7, api_key: Optional[str] = None, use_proxy: bool = False):
+        super().__init__(model_name, temperature, api_key, use_proxy)
         # DeepSeek uses OpenAI-compatible API
         key = self.api_key or settings.deepseek_api_key
         if not key:
@@ -129,9 +137,16 @@ class DeepSeekAdapter(BaseLLMAdapter):
                 key = "dummy-key-for-testing"
             else:
                 raise ValueError("DeepSeek API key is required. Set DEEPSEEK_API_KEY environment variable or provide api_key parameter.")
+        
+        http_client = None
+        if self.use_proxy and settings.llm_proxy_url:
+            logger.info(f"Using proxy {settings.llm_proxy_url} for DeepSeek")
+            http_client = httpx.AsyncClient(proxies=settings.llm_proxy_url)
+
         self.client = AsyncOpenAI(
             api_key=key,
-            base_url="https://api.deepseek.com"
+            base_url="https://api.deepseek.com",
+            http_client=http_client
         )
     
     async def generate(self, messages: List[Dict[str, str]], system_prompt: str) -> str:
@@ -175,17 +190,23 @@ class DeepSeekAdapter(BaseLLMAdapter):
 class ChatAnywhereAdapter(BaseLLMAdapter):
     """Adapter for ChatAnywhere API (Free OpenAI-compatible)."""
     
-    def __init__(self, model_name: str = "gpt-3.5-turbo", temperature: float = 0.7, api_key: Optional[str] = None):
-        super().__init__(model_name, temperature, api_key)
+    def __init__(self, model_name: str = "gpt-3.5-turbo", temperature: float = 0.7, api_key: Optional[str] = None, use_proxy: bool = False):
+        super().__init__(model_name, temperature, api_key, use_proxy)
         # ChatAnywhere uses OpenAI-compatible API with a specific base URL
         key = self.api_key
         if not key:
             logger.warning("No ChatAnywhere API key provided")
             raise ValueError("ChatAnywhere API key is required. Provide api_key parameter.")
             
+        http_client = None
+        if self.use_proxy and settings.llm_proxy_url:
+            logger.info(f"Using proxy {settings.llm_proxy_url} for ChatAnywhere")
+            http_client = httpx.AsyncClient(proxies=settings.llm_proxy_url)
+
         self.client = AsyncOpenAI(
             api_key=key,
-            base_url="https://api.chatanywhere.tech/v1"
+            base_url="https://api.chatanywhere.tech/v1",
+            http_client=http_client
         )
     
     async def generate(self, messages: List[Dict[str, str]], system_prompt: str) -> str:
@@ -244,14 +265,15 @@ class ChatAnywhereAdapter(BaseLLMAdapter):
 class GoogleAdapter(BaseLLMAdapter):
     """Adapter for Google Gemini API."""
     
-    def __init__(self, model_name: str = "gemini-2.0-flash-exp", temperature: float = 0.7, api_key: Optional[str] = None):
-        super().__init__(model_name, temperature, api_key)
+    def __init__(self, model_name: str = "gemini-2.0-flash-exp", temperature: float = 0.7, api_key: Optional[str] = None, use_proxy: bool = False):
+        super().__init__(model_name, temperature, api_key, use_proxy)
         key = self.api_key
         if not key:
              logger.warning("No Google API key provided")
              raise ValueError("Google API key is required. Provide api_key parameter.")
         
         # Initialize Google GenAI client
+        # Note: Proxy support for Google GenAI SDK is limited, may need environment variables
         self.client = genai.Client(api_key=key)
 
     async def generate(self, messages: List[Dict[str, str]], system_prompt: str) -> str:
@@ -420,7 +442,7 @@ class OllamaAdapter(BaseLLMAdapter):
             raise Exception(f"Failed to generate response from Ollama: {str(e)}")
 
 
-def get_llm_adapter(provider: str, model_name: str, temperature: float = 0.7, api_key: Optional[str] = None) -> BaseLLMAdapter:
+def get_llm_adapter(provider: str, model_name: str, temperature: float = 0.7, api_key: Optional[str] = None, use_proxy: bool = False) -> BaseLLMAdapter:
     """
     Factory function to get the appropriate LLM adapter.
     
@@ -429,6 +451,7 @@ def get_llm_adapter(provider: str, model_name: str, temperature: float = 0.7, ap
         model_name: Model name
         temperature: Temperature parameter
         api_key: Optional API key
+        use_proxy: Whether to use proxy
         
     Returns:
         Appropriate LLM adapter instance
@@ -439,16 +462,16 @@ def get_llm_adapter(provider: str, model_name: str, temperature: float = 0.7, ap
     provider = provider.lower()
     
     if provider == "openai":
-        return OpenAIAdapter(model_name, temperature, api_key)
+        return OpenAIAdapter(model_name, temperature, api_key, use_proxy)
     elif provider == "deepseek":
-        return DeepSeekAdapter(model_name, temperature, api_key)
+        return DeepSeekAdapter(model_name, temperature, api_key, use_proxy)
     elif provider == "ollama":
-        return OllamaAdapter(model_name, temperature, api_key)
+        return OllamaAdapter(model_name, temperature, api_key, base_url="http://localhost:11434", use_proxy=use_proxy)
     elif provider == "google":
-        return GoogleAdapter(model_name, temperature, api_key)
+        return GoogleAdapter(model_name, temperature, api_key, use_proxy)
     elif provider == "chatanywhere":
-        return ChatAnywhereAdapter(model_name, temperature, api_key)
+        return ChatAnywhereAdapter(model_name, temperature, api_key, use_proxy)
     elif provider == "dashscope" or provider == "aliyun":
-        return DashScopeAdapter(model_name, temperature, api_key)
+        return DashScopeAdapter(model_name, temperature, api_key, use_proxy)
     else:
         raise ValueError(f"Unsupported provider: {provider}")

@@ -62,6 +62,7 @@ export interface CreateAgentRequest {
   system_prompt: string
   api_key_config?: string
   temperature?: number
+  use_proxy?: boolean
   is_global?: boolean
 }
 

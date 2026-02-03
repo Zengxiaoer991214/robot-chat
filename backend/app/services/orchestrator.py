@@ -295,7 +295,8 @@ class ChatOrchestrator:
             provider=agent.provider,
             model_name=agent.model_name,
             temperature=agent.temperature,
-            api_key=agent.api_key_config
+            api_key=agent.api_key_config,
+            use_proxy=agent.use_proxy
         )
         
         # Generate response

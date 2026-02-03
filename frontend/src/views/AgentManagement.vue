@@ -131,6 +131,14 @@
                 <p class="mt-1.5 text-xs text-gray-500 dark:text-gray-400">If provided, this key will be used instead of the system default.</p>
               </div>
 
+              <div class="flex items-center">
+                <input v-model="form.use_proxy" id="use_proxy" type="checkbox" class="h-4 w-4 text-indigo-600 focus:ring-indigo-500 border-gray-300 rounded">
+                <label for="use_proxy" class="ml-2 block text-sm text-gray-900 dark:text-gray-300">
+                  Use Proxy
+                  <p class="text-xs text-gray-500">Enable if the model provider requires a proxy connection (e.g. for access outside firewall)</p>
+                </label>
+              </div>
+
               <div>
                 <label class="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">System Prompt</label>
                 <textarea v-model="form.system_prompt" rows="3" class="block w-full border-gray-300 dark:border-gray-600 rounded-xl shadow-sm focus:ring-indigo-500 focus:border-indigo-500 sm:text-sm border p-2.5 bg-gray-50/50 dark:bg-gray-700/50 dark:text-white transition-all focus:bg-white dark:focus:bg-gray-700" placeholder="Describe the agent's personality..."></textarea>
@@ -249,6 +257,7 @@ const editAgent = (agent: Agent) => {
   form.system_prompt = agent.system_prompt
   form.temperature = agent.temperature
   form.api_key_config = '' // Don't show existing key
+  form.use_proxy = agent.use_proxy || false
   form.is_global = agent.is_global || false
   showCreateModal.value = true
 }

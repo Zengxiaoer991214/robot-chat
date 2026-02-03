@@ -30,6 +30,11 @@ class Settings(BaseSettings):
         default=None,
         description="Default Aliyun DashScope API key"
     )
+
+    llm_proxy_url: Optional[str] = Field(
+        default="http://host.docker.internal:7890",
+        description="Optional proxy URL for LLM API calls"
+    )
     
     # Server
     host: str = Field(default="0.0.0.0", description="Server host")
