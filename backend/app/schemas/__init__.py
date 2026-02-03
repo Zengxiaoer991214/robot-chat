@@ -24,7 +24,7 @@ class UserResponse(UserBase):
     is_active: bool
     created_at: datetime
     
-    model_config = ConfigDict(from_attributes=True)
+    model_config = ConfigDict(from_attributes=True, protected_namespaces=())
 
 
 # ===== Token Schemas =====
@@ -49,6 +49,8 @@ class AgentBase(BaseModel):
     api_key_config: Optional[str] = None
     temperature: float = Field(default=0.7, ge=0.0, le=2.0)
     is_global: bool = False
+    
+    model_config = ConfigDict(protected_namespaces=())
 
 
 class AgentCreate(AgentBase):
@@ -67,6 +69,8 @@ class AgentUpdate(BaseModel):
     temperature: Optional[float] = Field(None, ge=0.0, le=2.0)
     use_proxy: Optional[bool] = None
     is_global: Optional[bool] = None
+    
+    model_config = ConfigDict(protected_namespaces=())
 
 
 class AgentResponse(AgentBase):
@@ -74,7 +78,7 @@ class AgentResponse(AgentBase):
     id: int
     user_id: int
     
-    model_config = ConfigDict(from_attributes=True)
+    model_config = ConfigDict(from_attributes=True, protected_namespaces=())
 
 
 # ===== Role Schemas =====
@@ -112,7 +116,7 @@ class RoleResponse(RoleBase):
     created_at: datetime
     agent: Optional[AgentResponse] = None
     
-    model_config = ConfigDict(from_attributes=True)
+    model_config = ConfigDict(from_attributes=True, protected_namespaces=())
 
 
 # ===== Room Schemas =====
