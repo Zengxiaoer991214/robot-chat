@@ -26,18 +26,18 @@
             </div>
             <div class="hidden sm:ml-8 sm:flex sm:space-x-8">
               <router-link
-                to="/chat"
-                class="border-transparent text-gray-500 hover:text-gray-900 dark:text-gray-400 dark:hover:text-gray-200 inline-flex items-center px-1 pt-1 border-b-2 text-sm font-medium transition-colors duration-200"
-                active-class="border-indigo-500 text-indigo-600 dark:text-indigo-400 dark:border-indigo-400"
-              >
-                Chat
-              </router-link>
-              <router-link
                 to="/"
                 class="border-transparent text-gray-500 hover:text-gray-900 dark:text-gray-400 dark:hover:text-gray-200 inline-flex items-center px-1 pt-1 border-b-2 text-sm font-medium transition-colors duration-200"
                 exact-active-class="border-indigo-500 text-indigo-600 dark:text-indigo-400 dark:border-indigo-400"
               >
                 Chat Rooms
+              </router-link>
+              <router-link
+                to="/chat"
+                class="border-transparent text-gray-500 hover:text-gray-900 dark:text-gray-400 dark:hover:text-gray-200 inline-flex items-center px-1 pt-1 border-b-2 text-sm font-medium transition-colors duration-200"
+                active-class="border-indigo-500 text-indigo-600 dark:text-indigo-400 dark:border-indigo-400"
+              >
+                Chat
               </router-link>
               <router-link
                 to="/roles"

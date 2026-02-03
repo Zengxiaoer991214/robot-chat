@@ -2,6 +2,7 @@
 LLM Adapter Pattern for unified API calls to different providers.
 """
 import logging
+import asyncio
 from abc import ABC, abstractmethod
 from typing import List, Dict, Optional, Any
 import httpx
@@ -322,8 +323,8 @@ class GoogleAdapter(BaseLLMAdapter):
 class DashScopeAdapter(BaseLLMAdapter):
     """Adapter for Aliyun DashScope (BaiLian) API."""
     
-    def __init__(self, model_name: str = "qwen-plus", temperature: float = 0.7, api_key: Optional[str] = None):
-        super().__init__(model_name, temperature, api_key)
+    def __init__(self, model_name: str = "qwen-plus", temperature: float = 0.7, api_key: Optional[str] = None, use_proxy: bool = False):
+        super().__init__(model_name, temperature, api_key, use_proxy)
         # DashScope uses OpenAI-compatible API
         key = self.api_key or settings.dashscope_api_key
         if not key:
@@ -332,10 +333,16 @@ class DashScopeAdapter(BaseLLMAdapter):
                 key = "dummy-key-for-testing"
             else:
                 raise ValueError("DashScope API key is required. Set DASHSCOPE_API_KEY environment variable or provide api_key parameter.")
-                
+        
+        http_client = None
+        if self.use_proxy and settings.llm_proxy_url:
+            logger.info(f"Using proxy {settings.llm_proxy_url} for DashScope")
+            http_client = httpx.AsyncClient(proxies=settings.llm_proxy_url)
+
         self.client = AsyncOpenAI(
             api_key=key,
-            base_url="https://dashscope.aliyuncs.com/compatible-mode/v1"
+            base_url="https://dashscope.aliyuncs.com/compatible-mode/v1",
+            http_client=http_client
         )
     
     async def generate(self, messages: List[Dict[str, str]], system_prompt: str) -> str:
@@ -394,8 +401,8 @@ class DashScopeAdapter(BaseLLMAdapter):
 class OllamaAdapter(BaseLLMAdapter):
     """Adapter for local Ollama models."""
     
-    def __init__(self, model_name: str = "llama3", temperature: float = 0.7, api_key: Optional[str] = None, base_url: str = "http://localhost:11434"):
-        super().__init__(model_name, temperature, api_key)
+    def __init__(self, model_name: str = "llama3", temperature: float = 0.7, api_key: Optional[str] = None, base_url: str = "http://localhost:11434", use_proxy: bool = False):
+        super().__init__(model_name, temperature, api_key, use_proxy)
         self.base_url = base_url
     
     async def generate(self, messages: List[Dict[str, str]], system_prompt: str) -> str:
