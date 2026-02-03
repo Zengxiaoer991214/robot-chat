@@ -417,7 +417,12 @@ class OllamaAdapter(BaseLLMAdapter):
             full_messages = [{"role": "system", "content": system_prompt}] + messages
             
             logger.info(f"Calling Ollama API with model {self.model_name}")
-            async with httpx.AsyncClient(timeout=60.0) as client:
+            
+            proxies = None
+            if self.use_proxy and settings.llm_proxy_url:
+                proxies = settings.llm_proxy_url
+                
+            async with httpx.AsyncClient(timeout=60.0, proxies=proxies) as client:
                 response = await client.post(
                     f"{self.base_url}/api/chat",
                     json={
