@@ -174,7 +174,7 @@
 </template>
 
 <script setup lang="ts">
-import { ref, onMounted, reactive, watch, computed } from 'vue'
+import { ref, onMounted, reactive, watch } from 'vue'
 import { agentApi, authApi } from '@/services/api'
 import type { Agent, CreateAgentRequest } from '@/types'
 

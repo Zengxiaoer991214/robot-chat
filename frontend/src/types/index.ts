@@ -12,6 +12,7 @@ export interface Agent {
   api_key_config?: string
   temperature: number
   user_id?: number
+  use_proxy?: boolean
   is_global?: boolean
 }
 
