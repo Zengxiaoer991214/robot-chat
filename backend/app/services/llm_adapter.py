@@ -394,8 +394,9 @@ class DashScopeAdapter(BaseLLMAdapter):
                     yield chunk.choices[0].delta.content
                     
         except Exception as e:
-            logger.error(f"DashScope API stream error: {str(e)}")
-            yield f"[Error: {str(e)}]"
+            proxy_msg = f" [Proxy: {settings.llm_proxy_url}]" if self.use_proxy else " [No Proxy]"
+            logger.error(f"DashScope API stream error: {str(e)}{proxy_msg}")
+            yield f"[Error: {str(e)}{proxy_msg}]"
 
 
 class OllamaAdapter(BaseLLMAdapter):
