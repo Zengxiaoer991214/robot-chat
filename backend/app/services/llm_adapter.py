@@ -83,6 +83,9 @@ class OpenAIAdapter(BaseLLMAdapter):
         if self.use_proxy and settings.llm_proxy_url:
             logger.info(f"Using proxy {settings.llm_proxy_url} for OpenAI")
             http_client = httpx.AsyncClient(proxies=settings.llm_proxy_url)
+        else:
+            # Force direct connection, ignoring environment proxy variables to prevent accidental usage of global HTTP_PROXY
+            http_client = httpx.AsyncClient(trust_env=False)
             
         self.client = AsyncOpenAI(api_key=key, http_client=http_client)
     
@@ -143,6 +146,9 @@ class DeepSeekAdapter(BaseLLMAdapter):
         if self.use_proxy and settings.llm_proxy_url:
             logger.info(f"Using proxy {settings.llm_proxy_url} for DeepSeek")
             http_client = httpx.AsyncClient(proxies=settings.llm_proxy_url)
+        else:
+            # Force direct connection, ignoring environment proxy variables
+            http_client = httpx.AsyncClient(trust_env=False)
 
         self.client = AsyncOpenAI(
             api_key=key,
@@ -203,6 +209,9 @@ class ChatAnywhereAdapter(BaseLLMAdapter):
         if self.use_proxy and settings.llm_proxy_url:
             logger.info(f"Using proxy {settings.llm_proxy_url} for ChatAnywhere")
             http_client = httpx.AsyncClient(proxies=settings.llm_proxy_url)
+        else:
+            # Force direct connection, ignoring environment proxy variables
+            http_client = httpx.AsyncClient(trust_env=False)
 
         self.client = AsyncOpenAI(
             api_key=key,
@@ -338,6 +347,9 @@ class DashScopeAdapter(BaseLLMAdapter):
         if self.use_proxy and settings.llm_proxy_url:
             logger.info(f"Using proxy {settings.llm_proxy_url} for DashScope")
             http_client = httpx.AsyncClient(proxies=settings.llm_proxy_url)
+        else:
+            # Force direct connection, ignoring environment proxy variables
+            http_client = httpx.AsyncClient(trust_env=False)
 
         self.client = AsyncOpenAI(
             api_key=key,
