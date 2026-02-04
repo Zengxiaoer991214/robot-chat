@@ -12,12 +12,8 @@ services:
       - DATABASE_URL=${DATABASE_URL}
       - APP_PASSWORD=${APP_PASSWORD}
       - APP_URL=${APP_URL}
-      # 代理配置：指向宿主机的 7890 端口
-      # 注意：宿主机上的代理软件必须允许局域网连接 (Allow LAN) 或监听 0.0.0.0
-      - HTTP_PROXY=http://host.docker.internal:7890
-      - HTTPS_PROXY=http://host.docker.internal:7890
-      - http_proxy=http://host.docker.internal:7890
-      - https_proxy=http://host.docker.internal:7890
+      # 代理配置：通过 LLM_PROXY_URL 控制，不在系统层面强制 HTTP_PROXY
+      - LLM_PROXY_URL=http://host.docker.internal:7890
       # 避免内部服务走代理
       - NO_PROXY=localhost,127.0.0.1,::1,robot-chat-backend,robot-chat-frontend,backend,frontend
     ports:
