@@ -42,6 +42,12 @@ class Settings(BaseSettings):
     debug: bool = Field(default=False, description="Debug mode")
     app_password: Optional[str] = Field(default=None, description="Optional password for application access")
     
+    # Registration
+    invitation_code: str = Field(
+        default="Getaway2026",
+        description="Invitation code required for registration"
+    )
+    
     # Application
     max_context_messages: int = Field(
         default=20,

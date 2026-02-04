@@ -7,6 +7,7 @@ from app.core.database import get_db
 from app.core.security import verify_password, get_password_hash, create_access_token, ACCESS_TOKEN_EXPIRE_MINUTES
 from app.models import User
 from app.schemas import UserCreate, UserResponse, Token
+from app.core.config import settings
 
 router = APIRouter()
 
@@ -32,6 +33,13 @@ async def login_for_access_token(form_data: OAuth2PasswordRequestForm = Depends(
 
 @router.post("/register", response_model=UserResponse)
 def register(user_in: UserCreate, db: Session = Depends(get_db)):
+    # Check invitation code
+    if user_in.invitation_code != settings.invitation_code:
+        raise HTTPException(
+            status_code=400,
+            detail="Invalid invitation code"
+        )
+
     user = db.query(User).filter(User.username == user_in.username).first()
     if user:
         raise HTTPException(

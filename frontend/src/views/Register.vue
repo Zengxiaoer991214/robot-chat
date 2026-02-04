@@ -50,6 +50,25 @@
               placeholder="Email (Optional)"
             />
           </div>
+
+          <div class="relative group">
+            <label for="invitationCode" class="sr-only">Invitation Code</label>
+            <div class="absolute inset-y-0 left-0 pl-3 flex items-center pointer-events-none">
+              <svg class="h-5 w-5 text-gray-400 dark:text-gray-500 group-focus-within:text-purple-500 dark:group-focus-within:text-purple-400 transition-colors" xmlns="http://www.w3.org/2000/svg" viewBox="0 0 20 20" fill="currentColor">
+                <path fill-rule="evenodd" d="M10 18a8 8 0 100-16 8 8 0 000 16zm1-11a1 1 0 10-2 0v2H7a1 1 0 100 2h2v2a1 1 0 102 0v-2h2a1 1 0 100-2h-2V7z" clip-rule="evenodd" />
+              </svg>
+            </div>
+            <input
+              id="invitationCode"
+              name="invitationCode"
+              type="text"
+              required
+              v-model="invitationCode"
+              class="appearance-none rounded-2xl relative block w-full pl-10 pr-4 py-3.5 border border-gray-200 dark:border-gray-700 placeholder-gray-400 dark:placeholder-gray-600 text-gray-900 dark:text-gray-100 bg-gray-50/50 dark:bg-gray-950/50 focus:outline-none focus:ring-2 focus:ring-purple-500/20 dark:focus:ring-purple-500/40 focus:border-purple-500 dark:focus:border-purple-500 focus:bg-white dark:focus:bg-gray-900 transition-all duration-200 sm:text-sm"
+              placeholder="Invitation Code"
+            />
+          </div>
+          
           <div class="relative group">
             <label for="password" class="sr-only">Password</label>
             <div class="absolute inset-y-0 left-0 pl-3 flex items-center pointer-events-none">
@@ -126,6 +145,7 @@ import { authApi } from '@/services/api'
 
 const username = ref('')
 const email = ref('')
+const invitationCode = ref('')
 const password = ref('')
 const confirmPassword = ref('')
 const loading = ref(false)
@@ -150,7 +170,8 @@ const handleRegister = async () => {
     await authApi.register({
         username: username.value,
         password: password.value,
-        email: email.value || undefined
+        email: email.value || undefined,
+        invitation_code: invitationCode.value
     })
     
     // Auto login or redirect to login? Redirect to login for now.

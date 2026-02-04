@@ -16,6 +16,7 @@ class UserBase(BaseModel):
 class UserCreate(UserBase):
     """Schema for creating a user."""
     password: str = Field(..., min_length=6)
+    invitation_code: str = Field(..., description="Invitation code required for registration")
 
 
 class UserResponse(UserBase):
